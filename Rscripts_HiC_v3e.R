@@ -411,6 +411,7 @@ dinucleotide.digitalString <- function(seq, dinuc){
 	return(hits)
 }
 
+# Plots the autocorrelation function for all dinucleotides in the supplied sequence
 dinucleotide.plotall.acf <- function(seq){
 	s <- ''
 	for (i in 1:nrow(seq)){
