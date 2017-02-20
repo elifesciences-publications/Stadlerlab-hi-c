@@ -411,24 +411,35 @@ dinucleotide.digitalString <- function(seq, dinuc){
 	return(hits)
 }
 
-# Plots the autocorrelation function for all dinucleotides in the supplied sequence
-dinucleotide.plotall.acf <- function(seq){
+# Plots the autocorrelation function for all dinucleotides in the supplied sequence. Takes as input a file of
+# just sequences, no carrots
+dinucleotide.plotall.acf <- function(file, funct='ACF'){
+	seq <- read.table(file)
+	seq <- seq[grep('>',seq[,1], invert=TRUE),] #matches all rows without '>'
 	s <- ''
-	for (i in 1:nrow(seq)){
-		s <- paste(s, seq[i,],sep='')
+	for (i in 1:length(seq)){
+		s <- paste(s, seq[i],sep='')
 	}
 	seq <- s
-	dev.new()
+	#dev.new()
 	par(mfcol=c(4,4))
 	nts <- c('G','A','T','C')
 	for (nt1 in nts){
 		for (nt2 in nts){
 			dinuc <- paste(nt1, nt2, sep="")
-			ac <- acf(dinucleotide.acf(seq, dinuc),plot=FALSE)
-			plot(ac[2:length(ac[[1]])], main=dinuc)
+			if(funct == 'ACF'){
+				ac <- acf(dinucleotide.digitalString(seq, dinuc),plot=FALSE)
+				plot(ac[2:length(ac[[1]])], main=dinuc)
+			}
+			if(funct == 'FFT'){
+				fft <- fft(dinucleotide.digitalString(seq, dinuc))
+				#return(fft)
+				plot.frequency.spectrum(fft, dinuc,c(0,2.5 * max(Mod(fft)[2:50])),c(0,30))
+			}
+			
 		}
 	}
-	return(seq)	
+	#return(seq)	
 
 }
 ########################################################################
@@ -451,13 +462,13 @@ rev.comp <- function(x){
 	return(x)
 }
 
-plot.frequency.spectrum <- function(X.k, xlimits=c(0,length(X.k))) {
+plot.frequency.spectrum <- function(X.k, title, ylimits = c(0,range(Mod(X.k))[2]),xlimits=c(0,length(X.k))) {
   plot.data  <- cbind(0:(length(X.k)-1), Mod(X.k))
 
   # TODO: why this scaling is necessary?
   plot.data[2:length(X.k),2] <- 2*plot.data[2:length(X.k),2] 
   
-  plot(plot.data, t="h", lwd=2, main="", 
+  plot(plot.data, t="h", lwd=2, main=title, 
        xlab="Frequency (Hz)", ylab="Strength", 
-       xlim=xlimits, ylim=c(0,max(Mod(plot.data[,2]))))
+       xlim=xlimits, ylim=ylimits)
 }
