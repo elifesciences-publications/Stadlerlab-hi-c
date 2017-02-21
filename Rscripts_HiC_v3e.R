@@ -398,50 +398,48 @@ dinucleotide.digitalString <- function(seq, dinuc){
 	len <- nchar(seq)
 	seq <- toupper(seq)
 	dinuc <- toupper(dinuc)
-	dinuc.rc <- rev.comp(dinuc)
+	#dinuc.rc <- rev.comp(dinuc) #comment out for no RC
 	matches.f <- gregexpr(dinuc,seq)
-	matches.r <- gregexpr(dinuc.rc,seq)
+	#matches.r <- gregexpr(dinuc.rc,seq) #comment out for no RC
 	hits <- rep(0,len - 1)
 	if(attributes(matches.f[[1]])$match.length[1] != -1){
 		hits[as.numeric(matches.f[[1]])] <- 1
 	}
-	if(attributes(matches.r[[1]])$match.length[1] != -1){
-		hits[as.numeric(matches.r[[1]])] <- 1
-	}
+	#if(attributes(matches.r[[1]])$match.length[1] != -1){ #comment out for no RC
+	#	hits[as.numeric(matches.r[[1]])] <- 1			   #comment out for no RC
+	#}                                                     #comment out for no RC
 	return(hits)
+}
+
+dinucleotide.plot.acf <- function(seq, dinuc, funct='ACF'){
+#flooey <- function(seq, dinuc, funct='ACF'){
+	if(funct == 'ACF'){
+		ac <- acf(dinucleotide.digitalString(seq, dinuc),plot=FALSE)
+		plot(ac[2:length(ac[[1]])], main=dinuc)
+	}
+	if(funct == 'FFT'){
+		fft <- fft(dinucleotide.digitalString(seq, dinuc))
+		plot.frequency.spectrum(fft, dinuc,c(0,2.5 * max(Mod(fft)[2:50])),c(0,30))
+	}
 }
 
 # Plots the autocorrelation function for all dinucleotides in the supplied sequence. Takes as input a file of
 # just sequences, no carrots
 dinucleotide.plotall.acf <- function(file, funct='ACF'){
-	seq <- read.table(file)
-	seq <- seq[grep('>',seq[,1], invert=TRUE),] #matches all rows without '>'
-	s <- ''
-	for (i in 1:length(seq)){
-		s <- paste(s, seq[i],sep='')
-	}
-	seq <- s
-	#dev.new()
+	seq <- seq.asSingleString.fromFile(file)
 	par(mfcol=c(4,4))
 	nts <- c('G','A','T','C')
 	for (nt1 in nts){
 		for (nt2 in nts){
 			dinuc <- paste(nt1, nt2, sep="")
-			if(funct == 'ACF'){
-				ac <- acf(dinucleotide.digitalString(seq, dinuc),plot=FALSE)
-				plot(ac[2:length(ac[[1]])], main=dinuc)
-			}
-			if(funct == 'FFT'){
-				fft <- fft(dinucleotide.digitalString(seq, dinuc))
-				#return(fft)
-				plot.frequency.spectrum(fft, dinuc,c(0,2.5 * max(Mod(fft)[2:50])),c(0,30))
-			}
-			
+			dinucleotide.plot.acf(seq, dinuc, funct)			
 		}
 	}
-	#return(seq)	
-
 }
+
+
+
+
 ########################################################################
 # HELPER FUNCTIONS
 ########################################################################
@@ -471,4 +469,15 @@ plot.frequency.spectrum <- function(X.k, title, ylimits = c(0,range(Mod(X.k))[2]
   plot(plot.data, t="h", lwd=2, main=title, 
        xlab="Frequency (Hz)", ylab="Strength", 
        xlim=xlimits, ylim=ylimits)
+}
+
+seq.asSingleString.fromFile <- function(file){
+	seq <- read.table(file)
+	seq <- seq[grep('>',seq[,1], invert=TRUE),] #matches all rows without '>'
+	s <- ''
+	for (i in 1:length(seq)){
+		s <- paste(s, seq[i],sep='')
+	}
+	seq <- s
+
 }
