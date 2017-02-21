@@ -398,7 +398,7 @@ dinucleotide.digitalString <- function(seq, dinuc){
 	len <- nchar(seq)
 	seq <- toupper(seq)
 	dinuc <- toupper(dinuc)
-	#dinuc.rc <- rev.comp(dinuc) #comment out for no RC
+	#sdinuc.rc <- rev.comp(dinuc) #comment out for no RC
 	matches.f <- gregexpr(dinuc,seq)
 	#matches.r <- gregexpr(dinuc.rc,seq) #comment out for no RC
 	hits <- rep(0,len - 1)
