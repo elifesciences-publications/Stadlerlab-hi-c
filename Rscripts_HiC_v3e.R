@@ -411,8 +411,8 @@ dinucleotide.digitalString <- function(seq, dinuc){
 	return(hits)
 }
 
+# Takes a digital vector of dinucleotide positions, plots either autocorrelation or fourier transform.
 dinucleotide.plot.acf <- function(seq, dinuc, funct='ACF'){
-#flooey <- function(seq, dinuc, funct='ACF'){
 	if(funct == 'ACF'){
 		ac <- acf(dinucleotide.digitalString(seq, dinuc),plot=FALSE)
 		plot(ac[2:length(ac[[1]])], main=dinuc)
