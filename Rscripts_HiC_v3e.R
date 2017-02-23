@@ -437,7 +437,17 @@ dinucleotide.plotall.acf <- function(file, funct='ACF'){
 	}
 }
 
-
+#This must be one of "euclidean", "maximum", "manhattan", "canberra", "binary" or "minkowski".
+test <- function(x, method.choice='euclidean'){
+	x <- as.matrix(x)
+	#x[x < 15] <- 0
+	#x[x >= 15] <- 1
+	x <- x[order(x[,1],x[,2],x[,3],x[,4],x[,5],x[,6]),]
+	#d <- dist(x, method = method.choice)
+	#h <- hclust(d)
+	#x.clustered <- x[h$order,]
+	plot_ly(z=x, type="heatmap")
+}
 
 
 ########################################################################
