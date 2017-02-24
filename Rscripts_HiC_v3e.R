@@ -437,18 +437,58 @@ dinucleotide.plotall.acf <- function(file, funct='ACF'){
 	}
 }
 
-#This must be one of "euclidean", "maximum", "manhattan", "canberra", "binary" or "minkowski".
-test <- function(x, method.choice='euclidean'){
+# For binary ChIP matrix, sorts sequentially on columns and makes a heatmap
+chip.binary.sortedheatmap <- function(x, method.choice='euclidean'){
 	x <- as.matrix(x)
-	#x[x < 15] <- 0
-	#x[x >= 15] <- 1
-	x <- x[order(x[,1],x[,2],x[,3],x[,4],x[,5],x[,6]),]
-	#d <- dist(x, method = method.choice)
-	#h <- hclust(d)
-	#x.clustered <- x[h$order,]
-	plot_ly(z=x, type="heatmap")
+	x <- x[order(x[,1],x[,2],x[,3],x[,4],x[,5],x[,6], decreasing=TRUE),]
+	#plot_ly(z=x, type="heatmap", x = colnames(x))
+	chip.binary.heatmap(x)
 }
 
+chip.binary.singlysorted <- function(x, stem){
+	blues <- brewer.pal(9, "Blues")
+	ordering <- c(1:6,1:6)
+	for (i in 1:ncol(x)){
+		#dev.new()
+		x1 <- x[,ordering[i:(i + 5)]]
+		x1 <- x1[order(x1[,1], decreasing=TRUE),]
+		#chip.binary.heatmap(x1)
+		#print(paste(stem, i,'.jpeg',sep=''))
+		jpeg(paste(stem, i,'.jpeg',sep=''),height=3000, width=3000)
+		heatmap.2(x1,Colv=NA,Rowv=NA,trace="none", dendrogram="none",labRow=NA,key=FALSE, cexCol=8, margins=c(50,50), col=blues)
+		dev.off()
+	}
+}
+
+chip.binary.heatmap <- function(x){
+	blues <- brewer.pal(9, "Blues")
+	heatmap.2(x,symm=TRUE,Colv=FALSE,Rowv=FALSE, trace="none",dendrogram="none",labRow=NA,key=FALSE,colsep=0:(ncol(x)+1),sepcolor="black",sepwidth=c(0.005,0.005), col=blues,margins=c(50,50),cexCol=8)
+}
+
+# Takes a binary matrix of factor occupancy, calculates for ever pairwise combination of columns (every factor)
+# combination, the probability of finding B bound given A is bound, the probability of finding B bound given
+# A is not bound, and the ratio (enrichment)
+ChIP.conditional.occupancies <- function(x){
+	out <- c(1,1,1,1,1)
+	for (i in 1:ncol(x)){
+		for (j in 1:ncol(x)){
+			if (i != j){
+				compare <- x[,i] == x[,j]
+				p.j.given.i <- signif(nrow(x[x[,i] == 1 & x[,j] == 1,]) / nrow(x[x[,i] == 1,]), 3)
+				p.j.given.not.i <- signif(nrow(x[x[,i] == 0 & x[,j] == 1,]) / nrow(x[x[,i] == 0,]), 3)
+				enrichment <- signif(p.j.given.i / p.j.given.not.i, 3)
+				out <- rbind(out, c(colnames(x)[i], colnames(x)[j], p.j.given.i, p.j.given.not.i, enrichment))
+			}
+		}
+	}
+	return(out)
+}
+
+chip.factor.combofreq <- function(x){
+	library("plyr")
+	counts <- count(x)
+	return(counts[order(counts$freq, decreasing=TRUE),])
+}
 
 ########################################################################
 # HELPER FUNCTIONS
@@ -459,10 +499,12 @@ read.matrix <- function(x){
 	return(as.matrix(read.table(x)))
 }
 
+# Standard formatted write.table with quotes off and tab sep
 write.fileout <- function(x, file){
 	write.table(x, file, sep = '\t', quote=FALSE, row.names=FALSE, col.names=FALSE)
 }
 
+# returns reverse complement
 rev.comp <- function(x){
 	x <- toupper(x)
 	x <- chartr('GATC','CTAG', x)
@@ -470,6 +512,7 @@ rev.comp <- function(x){
 	return(x)
 }
 
+# Plots the frequency spectrum of a fourier transform
 plot.frequency.spectrum <- function(X.k, title, ylimits = c(0,range(Mod(X.k))[2]),xlimits=c(0,length(X.k))) {
   plot.data  <- cbind(0:(length(X.k)-1), Mod(X.k))
 
@@ -481,6 +524,7 @@ plot.frequency.spectrum <- function(X.k, title, ylimits = c(0,range(Mod(X.k))[2]
        xlim=xlimits, ylim=ylimits)
 }
 
+# Takes a fasta file (or any sequence file) and puts all the sequences together as a single string for searching, etc.
 seq.asSingleString.fromFile <- function(file){
 	seq <- read.table(file)
 	seq <- seq[grep('>',seq[,1], invert=TRUE),] #matches all rows without '>'
