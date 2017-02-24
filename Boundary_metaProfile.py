@@ -1,5 +1,9 @@
 '''
-
+Takes a file of positions (e.g., boundaries) in UCSC format and a wig file of some genomic feature (ChIP), sums
+the wig feature relative to the left-most position of the boundaries, reports the aggregate profile. I built this
+normalization function, which divides the row generated around each boundary by the sum...but it works poorly 
+and mathematically doesn't make a lot of sense. Don't feel like explaining, but I left it just in case it's
+useful somehow. Anyway don't use the -n function.
 '''
 from optparse import OptionParser
 import sys
@@ -17,21 +21,40 @@ def parse_options():
 					  help="window in bins", metavar="WINDOW")
 	parser.add_option("-b", "--bin_size", dest="bin_size", default=100,
 					  help="bin size bp", metavar="BINSIZE")
+	parser.add_option("-n", "--normalize", dest="normalize", default=False,
+					  help="Normalize? (any character)", metavar="NORM")
 
 
 	(options, args) = parser.parse_args()
 	return options
 
-def add_position(line, genome, window, bin_size, counts):
+def add_position(line, genome, window, bin_size, counts, normalize):
 	line = line.rstrip()
 	(chr, positions) = line.split(':')
 	(pos1, pos2) = positions.split('-')
 	bin_Lmost = int(int(pos1) / bin_size)
-	
+	local_counts = {}
+	local_sum = 0
+
 	for i in range(-1 * window, window):
 		bin = bin_Lmost + i
 		if (bin in genome[chr]):
-			counts[i] += genome[chr][bin]
+			local_counts[i] = genome[chr][bin]
+			local_sum += genome[chr][bin]
+	if (normalize):
+		local_counts = normalize_row(local_counts, local_sum)
+	add_row(local_counts, counts, window)
+
+def normalize_row(local_counts, local_sum):
+	norm_counts = {}
+	for i in local_counts:
+		norm_counts[i] = local_counts[i] / local_sum
+	return(norm_counts)
+
+def add_row(local_counts, counts, window):
+	for i in range(-1 * window, window):
+		if (i in local_counts):
+			counts[i] += local_counts[i]
 	
 
 def add_feature(line, genome, bin_size):
@@ -59,6 +82,7 @@ genome = {}
 counts = {}
 window = int(options.window)
 bin_size = int(options.bin_size)
+normalize = options.normalize
 for i in range(-1 * window, window):
 	counts[i] = 0
 
@@ -78,7 +102,7 @@ featurefile.close()
 pos_file = open(options.pos_file, 'r')
 
 for line in pos_file:
-	add_position(line, genome, window, bin_size, counts)
+	add_position(line, genome, window, bin_size, counts, normalize)
 
 pos_file.close()
 

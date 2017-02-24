@@ -60,6 +60,7 @@ def add_feature(line, genome):
 	items = line.split()
 	if (len(items) == 9):
 		chr = items[0]
+		#print(chr)
 		if (not re.match('chr',chr)):
 			chr = 'chr' + chr
 		pos1 = int(items[3])
@@ -69,6 +70,7 @@ def add_feature(line, genome):
 			if (chr in genome):
 				genome[chr][i] = 1
 			else:
+				#print(chr)
 				genome[chr] = {}
 				genome[chr][i] = 1
 

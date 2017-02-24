@@ -1,5 +1,6 @@
 '''
-Converts a two-column (fixed span) WIG file to a 4-column WIG format
+Cleans up WIG files for use in my scripts that require 4-column WIG files with single track lines. Keeps only the first
+track line, converts a two-column (fixed span) WIG file to a 4-column WIG format, leaves 4-column intact
 '''
 from optparse import OptionParser
 import sys
@@ -47,8 +48,11 @@ for line in infile:
 		curr_span = int(span[5:])
 		#print(curr_chr + ' ' + curr_span)
 	else:
-		#print(line)
-		(pos, value) = line.split()
-		pos = int(pos)
-		outfile.write(curr_chr + '\t' + str(pos) + '\t' + str(pos + curr_span - 1) + '\t' + value + '\n')
+		line_values = line.split()
+		if (len(line_values) == 4):
+			outfile.write(line + '\n')
+		elif(len(line_values) == 2):
+			(pos, value) = line.split()
+			pos = int(pos)
+			outfile.write(curr_chr + '\t' + str(pos) + '\t' + str(pos + curr_span - 1) + '\t' + value + '\n')
 infile.close()
