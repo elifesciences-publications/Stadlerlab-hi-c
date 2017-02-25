@@ -490,6 +490,24 @@ chip.factor.combofreq <- function(x){
 	return(counts[order(counts$freq, decreasing=TRUE),])
 }
 
+chip.metaprofile.multiple.fromfiles <- function(folder){
+	files <- list.files(folder)
+	for (file in files){
+		if(grepl('.txt',file)){
+			path <- paste(folder, file,sep='/')
+			#print(path)
+			x <- read.table(path)
+			gene.name <- gsub('.txt','',file)
+			outfile <- paste(folder, '/',gene.name,'.pdf',sep='')
+			#jpeg(outfile, 1000,1000)
+			
+			plot(x[,1],x[,2],type="l",lwd=2.5, main=gene.name,xlab="Distance from Boundary",ylab="Cumulative Enrichment")
+			abline(v=0, lty=2,col=2)
+			dev.off()
+		}
+	}
+}
+
 ########################################################################
 # HELPER FUNCTIONS
 ########################################################################
