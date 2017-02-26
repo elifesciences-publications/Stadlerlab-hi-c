@@ -490,22 +490,46 @@ chip.factor.combofreq <- function(x){
 	return(counts[order(counts$freq, decreasing=TRUE),])
 }
 
-chip.metaprofile.multiple.fromfiles <- function(folder){
+chip.metaprofile.multiple.fromfiles <- function(folder, outfile){
 	files <- list.files(folder)
+	pdf(outfile,100,100)
+	rows <- round((length(files[grep('.txt',files)]) / 4),0)
+	par(mfcol=c(rows,4)) #comment for single
+	par(mai=c(1.5,1.5,1.5,1.5)) #comment for single
 	for (file in files){
 		if(grepl('.txt',file)){
 			path <- paste(folder, file,sep='/')
-			#print(path)
 			x <- read.table(path)
 			gene.name <- gsub('.txt','',file)
-			outfile <- paste(folder, '/',gene.name,'.pdf',sep='')
-			#jpeg(outfile, 1000,1000)
-			
-			plot(x[,1],x[,2],type="l",lwd=2.5, main=gene.name,xlab="Distance from Boundary",ylab="Cumulative Enrichment")
+			plot(x[,1],x[,2],type="l",lwd=10, main=gene.name,xlab="",ylab="",cex.main=15, cex.axis=9,xaxt="n")
 			abline(v=0, lty=2,col=2)
-			dev.off()
 		}
 	}
+	dev.off()
+}
+
+chip.metaprofile.multiple.singlePlot <- function(folder){
+	files <- list.files(folder)
+	pdf(outfile,100,100)
+	rows <- round((length(files[grep('.txt',files)]) / 4),0)
+	par(mfcol=c(rows,4)) #comment for single
+	par(mai=c(1.5,1.5,1.5,1.5)) #comment for single
+	for (file in files){
+		if(grepl('.txt',file)){
+			path <- paste(folder, file,sep='/')
+			x <- read.table(path)
+			gene.name <- gsub('.txt','',file)
+			#outfile <- paste(folder, '/',gene.name,'.pdf',sep='') #uncomment for single
+			#jpeg(outfile, 1000,100)
+			#pdf(outfile) #uncomment for single
+			#plot(x[,1],x[,2],type="l",lwd=2.5, main=gene.name,xlab="Distance from Boundary",ylab="Cumulative Enrichment") #uncomment for single
+			plot(x[,1],x[,2],type="l",lwd=10, main=gene.name,xlab="",ylab="",cex.main=15)
+			abline(v=0, lty=2,col=2)
+			#dev.off()
+			#return()
+		}
+	}
+	dev.off()
 }
 
 ########################################################################
