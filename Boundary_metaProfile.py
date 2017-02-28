@@ -21,14 +21,13 @@ def parse_options():
 					  help="window in bins", metavar="WINDOW")
 	parser.add_option("-b", "--bin_size", dest="bin_size", default=100,
 					  help="bin size bp", metavar="BINSIZE")
-	parser.add_option("-n", "--normalize", dest="normalize", default=False,
-					  help="Normalize? (any character)", metavar="NORM")
-
+	parser.add_option("-i", "--individual", dest="individual", default=False,
+					  help="Print individual lines? (any character)", metavar="INDIV")
 
 	(options, args) = parser.parse_args()
 	return options
 
-def add_position(line, genome, window, bin_size, counts, normalize):
+def add_position(line, genome, window, bin_size, counts, individual, outfile):
 	line = line.rstrip()
 	(chr, positions) = line.split(':')
 	(pos1, pos2) = positions.split('-')
@@ -41,8 +40,13 @@ def add_position(line, genome, window, bin_size, counts, normalize):
 		if (bin in genome[chr]):
 			local_counts[i] = genome[chr][bin]
 			local_sum += genome[chr][bin]
-	if (normalize):
-		local_counts = normalize_row(local_counts, local_sum)
+		else:
+			local_counts[i] = 0
+	if (individual):
+		outfile.write(line)
+		for i in range(-1 * window, window):
+			outfile.write('\t' + str(local_counts[i]))
+		outfile.write('\n')
 	add_row(local_counts, counts, window)
 
 def normalize_row(local_counts, local_sum):
@@ -78,11 +82,12 @@ def add_feature(line, genome, bin_size):
 
 
 options = parse_options()
+outfile = open(options.outfile,'w')
 genome = {}
 counts = {}
 window = int(options.window)
 bin_size = int(options.bin_size)
-normalize = options.normalize
+individual = options.individual
 for i in range(-1 * window, window):
 	counts[i] = 0
 
@@ -102,16 +107,16 @@ featurefile.close()
 pos_file = open(options.pos_file, 'r')
 
 for line in pos_file:
-	add_position(line, genome, window, bin_size, counts, normalize)
+	add_position(line, genome, window, bin_size, counts, individual, outfile)
 
 pos_file.close()
 
 
+if (not individual):
+	
 
-outfile = open(options.outfile,'w')
-
-for i in range(-1 * window, window):
-	outfile.write(str(i) + '\t' + str(counts[i]) + '\n')
+	for i in range(-1 * window, window):
+		outfile.write(str(i) + '\t' + str(counts[i]) + '\n')
 
 outfile.close()
 
