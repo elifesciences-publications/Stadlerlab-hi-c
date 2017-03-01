@@ -1,5 +1,8 @@
 '''
-
+Permutes the chromosomes for a file of positions in UCSC format (chr:pos1-pos2). Ensures it doesn't pick the same chromosome as
+original. It's a quick and dirty way to make matched control regions. Works generally because the various chromosome arms are 
+similarly sized so random positions probably exist on other chromosomes. A more sophisticated approach is necessary for anything 
+more than this. Just quick and dirty.
 '''
 from optparse import OptionParser
 from math import log
@@ -10,7 +13,7 @@ import random
 def parse_options():
 	parser = OptionParser()
 	parser.add_option("-f", "--file", dest="filename",
-					  help="Directional bias file", metavar="FILE")
+					  help="positions file in UCSC chr:pos1-pos2 format", metavar="FILE")
 
 	(options, args) = parser.parse_args()
 	return options

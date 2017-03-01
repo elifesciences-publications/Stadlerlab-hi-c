@@ -333,6 +333,7 @@ HiC.plot.decay.addMeans <- function(x, color){
 	points(x.vals, means, col=color, type="l", lty=2,lwd=0.8)
 }
 
+# Makes a uniformly decaying Hi-C matrix with a decay profile equal to experimentally supplied data in X. Calculates the average values at various distances from teh diagonal in the experimental data, then assigns those values to every row around the diagonal.
 HiC.make.uniform <- function(x,width,size){
 	x.middles <- HiC.matrix.extractMiddle(x, width)
 	#x.decay <- x.middles[,51:101]
@@ -341,16 +342,15 @@ HiC.make.uniform <- function(x,width,size){
 	for (i in 1:size){
 		start <- max((width + 2) - i, 1)
 		end <-  min((width + 1), size - i + 1) + width
-		#print(paste(start,end))
 		start.zeros <- i + start - width - 2
 		end.zeros <- size - (i + end - width) + 1
 		new.row <- c(rep(0, start.zeros), x.means[start:end], rep(0, end.zeros))
 		x.new[i,] <- new.row
-		#print(paste(start, end, start.zeros, end.zeros))
 	}
 	return(x.new)
 }
 
+# Makes little blocks of 'doped' values along the diagonal. Makes boxes of size n by n (n defined by size variable) that have all counts increased by multiplying by supplied factor. Boxes alternate, with an altered box followed by an unaltered box.
 diagonal.dope <- function(x, size, factor){
 	x1 <- x
 	for (i in seq(1, nrow(x), 2*size)){
@@ -364,6 +364,7 @@ diagonal.dope <- function(x, size, factor){
 	return(x1)
 }
 
+# Makes heatmap plots for all .txt files in a supplied folder. Designed for "local" maps. Data can be logged or histogram equalized depending on preference.
 HiC.localPlot.from.folder <- function(folder, outfolder, LOG=FALSE,HISTEQ=FALSE){
 	files <- list.files(folder)
 	for (file in files){
@@ -381,7 +382,6 @@ HiC.localPlot.from.folder <- function(folder, outfolder, LOG=FALSE,HISTEQ=FALSE)
 			outfile <- paste(outfile, '_histeq', sep='')
 		}
 		median <- quantile(x, 0.9)[1]
-		#x[x < median] <- median
 		outfile <- paste(outfile, '.jpeg', sep='')
 		jpeg(outfile, width = 4000, height = 4000)
 		heatmap.natural(x)
@@ -445,27 +445,26 @@ chip.binary.sortedheatmap <- function(x, method.choice='euclidean'){
 	chip.binary.heatmap(x)
 }
 
+# For binary ChIP data, which is a bunch of rows representing boundary elements and columns representing presence/absece (1/0) of a ChIP factor. Makes 6 heatmaps, one sorted on each column. Currently hard-coded for 6 insulator proteins.
 chip.binary.singlysorted <- function(x, stem){
 	blues <- brewer.pal(9, "Blues")
 	ordering <- c(1:6,1:6)
 	for (i in 1:ncol(x)){
-		#dev.new()
 		x1 <- x[,ordering[i:(i + 5)]]
 		x1 <- x1[order(x1[,1], decreasing=TRUE),]
-		#chip.binary.heatmap(x1)
-		#print(paste(stem, i,'.jpeg',sep=''))
 		jpeg(paste(stem, i,'.jpeg',sep=''),height=3000, width=3000)
 		heatmap.2(x1,Colv=NA,Rowv=NA,trace="none", dendrogram="none",labRow=NA,key=FALSE, cexCol=8, margins=c(50,50), col=blues)
 		dev.off()
 	}
 }
 
+# I think this is deprecated...
 chip.binary.heatmap <- function(x){
 	blues <- brewer.pal(9, "Blues")
 	heatmap.2(x,symm=TRUE,Colv=FALSE,Rowv=FALSE, trace="none",dendrogram="none",labRow=NA,key=FALSE,colsep=0:(ncol(x)+1),sepcolor="black",sepwidth=c(0.005,0.005), col=blues,margins=c(50,50),cexCol=8)
 }
 
-# Takes a binary matrix of factor occupancy, calculates for ever pairwise combination of columns (every factor)
+# Takes a binary matrix of factor occupancy, calculates for every pairwise combination of columns (every factor)
 # combination, the probability of finding B bound given A is bound, the probability of finding B bound given
 # A is not bound, and the ratio (enrichment)
 ChIP.conditional.occupancies <- function(x){
@@ -484,12 +483,14 @@ ChIP.conditional.occupancies <- function(x){
 	return(out)
 }
 
+# Calculates the frequency of each unique combination of factor binding (actually counts occurrences of unique rows of any matrix)
 chip.factor.combofreq <- function(x){
 	library("plyr")
 	counts <- count(x)
 	return(counts[order(counts$freq, decreasing=TRUE),])
 }
 
+# Plots the cumulative profiles for ChIP data around a position. Takes as input a folder that has multiple .txt files that contain two columns: the position and the cumulative count. Makes plots for all files, puts them on a single output file (but comments can be made to return to a separate output per file). Prints as PDF.
 chip.metaprofile.multiple.fromfiles <- function(folder, outfile){
 	files <- list.files(folder)
 	pdf(outfile,100,100)
@@ -508,6 +509,7 @@ chip.metaprofile.multiple.fromfiles <- function(folder, outfile){
 	dev.off()
 }
 
+#This appears to be the same as above...no idea why there are separate functions.
 chip.metaprofile.multiple.singlePlot <- function(folder){
 	files <- list.files(folder)
 	pdf(outfile,100,100)
@@ -532,6 +534,7 @@ chip.metaprofile.multiple.singlePlot <- function(folder){
 	dev.off()
 }
 
+# Takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row) and a width. Makes a heatmap for each txt file, printing a JPEG. Width determines number of bins around middle (width=40 gives 81 columns). Resulting plots are sorted becaues they are processed with chip.heatmaps.process()
 chip.heatmaps.folder.all <- function(folder, width){
 	files <- list.files(folder)
 	for (file in files){
@@ -543,23 +546,27 @@ chip.heatmaps.folder.all <- function(folder, width){
 			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
 			jpeg(paste(folder,'/',gene.name,'.jpeg',sep=''),4000,4000)
 			chip.heatmap(x, width, gene.name)
-			#abline(v=0, lty=2,col=2)
 			dev.off()
 		}
 	}
 }
 
+# Hard-codey script that takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row), grabs the ones corresponding to the list in genes. Can actually put anything there. Script processes each individual heatmap by compressing top 10%, making all negative values 0, and scaling by normalizing to sum. Combines these individual matrices into a larger matrix, each experiment separated by 50 columns of 0's. Then sorts on each column independently, prints a heatmap for sorting on each column. Pretty slow because these processes are slow. Currently adding functionality to print additional column with directionality Hi-C data.
 chip.heatmaps.insulators.fromfile <- function(folder, width){
-	genes <- c('BEAF-32','CP190','CTCF','GAF','mod(mdg4)','Su(Hw)')
+	genes <- c('BEAF-32','CP190','CTCF','GAF','mod(mdg4)','Su(Hw)','DNase_S5_rep1')
 	profiles <- list()
 	big.profile <- data.frame()
 	for (i in 1:length(genes)){
 		gene <- genes[i]
 		path <- paste(folder, '/',gene,'.txt',sep='')
 		x <- read.table(path,row.names=1)
-		x <- chip.heatmaps.process(x,width)
-		x <- (100000 * x) / sum(x) # just a scaling function since different datasets have different scales
 		profiles[[i]] <- x
+		#process these guys a little
+		middle <- round(ncol(x) / 2,0)
+		x[x < 0] <- 0
+		top.compress <- quantile(x[,middle],0.9)
+		x[x > top.compress] <- top.compress
+		x <- (100000 * x) / sum(x) # just a scaling function since different datasets have different scales
 		if(length(big.profile) > 0){
 			big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
 		}
@@ -567,21 +574,26 @@ chip.heatmaps.insulators.fromfile <- function(folder, width){
 			big.profile <- x
 		}	
 	}
+	directionality.path <- paste(folder, '/','nc14_HiC_directionality','.txt',sep='')
+	x <- read.table(directionality.path, row.names=1)
+	middle <- round(ncol(x) / 2,0)
+	big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
+	#return(big.profile)
+	
 	for (i in 1:length(profiles)){
 		middle <- round(ncol(profiles[[i]]) / 2,0)
 		row.sums <- apply(profiles[[i]][,(middle - 40):(middle + 40)], MARGIN=1, sum)
 		ordering <- order(row.sums,decreasing=TRUE)
 		x1 <- as.matrix(big.profile[ordering,])
-		#return(x1)
 		gene <- genes[i]
-		jpeg(paste("~/Bioinformatics/Outputs/201612/boundary_analysis/boundary_t0p2_aggregate_profiles_individual/Insulators_sortedby_", gene, ".jpeg", sep=''),4000,4000)
+		jpeg(paste(folder,'/sortedby_', gene, ".jpeg", sep=''),4000,4000)
 		chip.heatmap(x1, '')
 		dev.off()
-		#return()
+		return()
 	}
-	#return(big.profile)
 }
 
+# subfunction that takes a single ChIP individual value matrix, compresses top 10%, makes all negative values 0, sorts by the middle 81 columns.
 chip.heatmaps.process <- function(x, width){
 	middle <- round(ncol(x) / 2,0)
 	top.compress <- quantile(x[,middle],0.9)
@@ -595,6 +607,7 @@ chip.heatmaps.process <- function(x, width){
 	return(x1)
 }
 
+# uses heatmap.2 to print out a heatmap for ChIP values. Variety of colors available.
 chip.heatmap <- function(x, title){
 	require(gplots)
 	require(RColorBrewer)
