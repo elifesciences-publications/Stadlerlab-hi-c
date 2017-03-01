@@ -59,7 +59,7 @@ heatmap.natural <- function(x){
 	blue.yellow <- yellow.blue[18:1]
 	blues <- brewer.pal(9, "Blues")
 	
-	heatmap.2(x,dendrogram='none', Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(blue.yellow)(10000))
+	heatmap.2(x,dendrogram='none', Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(blues)(10000))
 }
 
 
@@ -532,7 +532,6 @@ chip.metaprofile.multiple.singlePlot <- function(folder){
 	dev.off()
 }
 
-<<<<<<< HEAD
 chip.heatmaps.folder.all <- function(folder, width){
 	files <- list.files(folder)
 	for (file in files){
@@ -553,28 +552,32 @@ chip.heatmaps.folder.all <- function(folder, width){
 chip.heatmaps.insulators.fromfile <- function(folder, width){
 	genes <- c('BEAF-32','CP190','CTCF','GAF','mod(mdg4)','Su(Hw)')
 	profiles <- list()
-	#big.profile <- data.frame()
+	big.profile <- data.frame()
 	for (i in 1:length(genes)){
 		gene <- genes[i]
 		path <- paste(folder, '/',gene,'.txt',sep='')
 		x <- read.table(path,row.names=1)
+		x <- chip.heatmaps.process(x,width)
+		x <- (100000 * x) / sum(x) # just a scaling function since different datasets have different scales
 		profiles[[i]] <- x
+		if(length(big.profile) > 0){
+			big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
+		}
+		else{
+			big.profile <- x
+		}	
 	}
 	for (i in 1:length(profiles)){
 		middle <- round(ncol(profiles[[i]]) / 2,0)
 		row.sums <- apply(profiles[[i]][,(middle - 40):(middle + 40)], MARGIN=1, sum)
 		ordering <- order(row.sums,decreasing=TRUE)
-		return(ordering)
-		for (j in 1:length(profiles)){
-				#jpeg(paste(folder,'/',genes[j],'_sortby_',genes[i],'.jpeg',sep=''),4000,4000)
-				return(profiles[[j]][ordering,])
-				chip.heatmap(profiles[[j]][ordering,],width,paste(genes[j],'_sortby_',genes[i],sep=''))
-				dev.off()
-			}
-		
-		#return(profiles[[i]])
-		
-
+		x1 <- as.matrix(big.profile[ordering,])
+		#return(x1)
+		gene <- genes[i]
+		jpeg(paste("~/Bioinformatics/Outputs/201612/boundary_analysis/boundary_t0p2_aggregate_profiles_individual/Insulators_sortedby_", gene, ".jpeg", sep=''),4000,4000)
+		chip.heatmap(x1, '')
+		dev.off()
+		#return()
 	}
 	#return(big.profile)
 }
@@ -592,7 +595,7 @@ chip.heatmaps.process <- function(x, width){
 	return(x1)
 }
 
-chip.heatmap <- function(x, width, title){
+chip.heatmap <- function(x, title){
 	require(gplots)
 	require(RColorBrewer)
 
@@ -606,8 +609,8 @@ chip.heatmap <- function(x, width, title){
 	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(blues)(100))
 
 }
-=======
->>>>>>> parent of d466326... insulators in R
+
+
 ########################################################################
 # HELPER FUNCTIONS
 ########################################################################
