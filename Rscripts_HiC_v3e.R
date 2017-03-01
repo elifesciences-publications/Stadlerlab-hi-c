@@ -217,7 +217,12 @@ HiC.click.coord <- function(chr.choice='all'){
 		print(paste(exact, window, sep = '     '))
 	}
 }
-
+# 0.1 to 1
+temp <- function(x){
+	x.vals <- seq(0.1, 1, 0.9 / nrow(x))
+	
+	plot(x.vals,x[,1],type="l",lwd=2)
+}
 
 #Zeros out everything but some given number of diagonal rows. So a width of 3 would leave the diagonal and the +1 and +2 diagonals, make everything else zero
 HiC.zeroOffDiag <- function(x, width){
@@ -527,12 +532,14 @@ chip.metaprofile.multiple.singlePlot <- function(folder){
 	dev.off()
 }
 
-chip.multiple.heatmaps.fromfile <- function(folder, width){
+<<<<<<< HEAD
+chip.heatmaps.folder.all <- function(folder, width){
 	files <- list.files(folder)
 	for (file in files){
 		if(grepl('.txt',file)){
 			path <- paste(folder, file,sep='/')
 			x <- read.table(path)
+			x <- chip.heatmaps.process(x, width)
 			gene.name <- gsub('.txt','',file)
 			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
 			jpeg(paste(folder,'/',gene.name,'.jpeg',sep=''),4000,4000)
@@ -546,37 +553,35 @@ chip.multiple.heatmaps.fromfile <- function(folder, width){
 chip.heatmaps.insulators.fromfile <- function(folder, width){
 	genes <- c('BEAF-32','CP190','CTCF','GAF','mod(mdg4)','Su(Hw)')
 	profiles <- list()
-	big.profile <- data.frame()
+	#big.profile <- data.frame()
 	for (i in 1:length(genes)){
 		gene <- genes[i]
 		path <- paste(folder, '/',gene,'.txt',sep='')
 		x <- read.table(path,row.names=1)
 		profiles[[i]] <- x
-		if(length(big.profile) > 0){
-			big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
-		}
-		else{
-			big.profile <- x
-		}	
 	}
 	for (i in 1:length(profiles)){
 		middle <- round(ncol(profiles[[i]]) / 2,0)
+		row.sums <- apply(profiles[[i]][,(middle - 40):(middle + 40)], MARGIN=1, sum)
+		ordering <- order(row.sums,decreasing=TRUE)
+		return(ordering)
+		for (j in 1:length(profiles)){
+				#jpeg(paste(folder,'/',genes[j],'_sortby_',genes[i],'.jpeg',sep=''),4000,4000)
+				return(profiles[[j]][ordering,])
+				chip.heatmap(profiles[[j]][ordering,],width,paste(genes[j],'_sortby_',genes[i],sep=''))
+				dev.off()
+			}
+		
 		#return(profiles[[i]])
-		ordering <- order(profiles[[i]][,(middle - 40):(middle + 40)],decreasing=TRUE)
-		x1 <- big.profile[ordering,]
-		return(x1)
-		chip.heatmap(x1, width, '')
-		return()
+		
+
 	}
 	#return(big.profile)
 }
 
-chip.heatmap <- function(x, width, title){
-	require(gplots)
-	require(RColorBrewer)
-
+chip.heatmaps.process <- function(x, width){
 	middle <- round(ncol(x) / 2,0)
-	top.compress <- quantile(x[,middle],0.9, na.rm=TRUE)
+	top.compress <- quantile(x[,middle],0.9)
 	x1 <- x[,(middle - width):(middle + width)]
 	x1 <- as.matrix(x1)
 	row.sums <- apply(x[,(middle - 40):(middle + 40)], MARGIN=1, sum)
@@ -584,7 +589,13 @@ chip.heatmap <- function(x, width, title){
 	x1 <- x1[order(row.sums,decreasing=TRUE),]
 	x1[x1 > top.compress] <- top.compress
 	x1[x1 < 0] <- 0
-	
+	return(x1)
+}
+
+chip.heatmap <- function(x, width, title){
+	require(gplots)
+	require(RColorBrewer)
+
 	yellow.orange.red <- c("white",brewer.pal(9, "YlOrRd"))
 	orange.and.blue <- c(brewer.pal(9, "Oranges")[7:1], brewer.pal(9, "Blues")[1:9])
 	yellow.blue <- c(brewer.pal(9, "YlOrBr")[9:1], brewer.pal(9, "Blues")[1:9])
@@ -592,9 +603,11 @@ chip.heatmap <- function(x, width, title){
 	blues <- brewer.pal(9, "Blues")
 	
 	#heatmap.2(x1)
-	heatmap.2(x1,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(blues)(100))
+	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(blues)(100))
 
 }
+=======
+>>>>>>> parent of d466326... insulators in R
 ########################################################################
 # HELPER FUNCTIONS
 ########################################################################
