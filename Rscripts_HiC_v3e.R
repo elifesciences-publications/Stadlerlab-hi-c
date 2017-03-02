@@ -551,9 +551,10 @@ chip.heatmaps.folder.all <- function(folder, width){
 	}
 }
 
-# Hard-codey script that takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row), grabs the ones corresponding to the list in genes. Can actually put anything there. Script processes each individual heatmap by compressing top 10%, making all negative values 0, and scaling by normalizing to sum. Combines these individual matrices into a larger matrix, each experiment separated by 50 columns of 0's. Then sorts on each column independently, prints a heatmap for sorting on each column. Pretty slow because these processes are slow. Currently adding functionality to print additional column with directionality Hi-C data.
+# Hard-codey script that takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row), grabs the ones corresponding to the list in genes. Can actually put anything there. Script processes each individual heatmap by compressing top 10%, making all negative values 0, and scaling by normalizing to sum. Combines these individual matrices into a larger matrix, each experiment separated by 50 columns of 0's. Then sorts on each column independently, prints a heatmap for sorting on each column. Pretty slow because these processes are slow. Just added feature that makes a separate file with the sorted  directionality Hi-C data, printed in red
 chip.heatmaps.insulators.fromfile <- function(folder, width){
 	genes <- c('BEAF-32','CP190','CTCF','GAF','mod(mdg4)','Su(Hw)','DNase_S5_rep1')
+	#genes <- c('BEAF-32','DNase_S5_rep1')
 	profiles <- list()
 	big.profile <- data.frame()
 	for (i in 1:length(genes)){
@@ -575,9 +576,18 @@ chip.heatmaps.insulators.fromfile <- function(folder, width){
 		}	
 	}
 	directionality.path <- paste(folder, '/','nc14_HiC_directionality','.txt',sep='')
-	x <- read.table(directionality.path, row.names=1)
-	middle <- round(ncol(x) / 2,0)
-	big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
+	directional <- read.table(directionality.path, row.names=1)
+	middle <- round(ncol(directional) / 2,0)
+	directional <- directional[,(middle - width):(middle + width)]
+	top.compress <- quantile(directional[,middle],0.9)
+	bottom.compress <- quantile(directional[,middle],0.1)
+	directional[directional > top.compress] <- top.compress
+	directional[directional < bottom.compress] <- bottom.compress
+	directional <- as.matrix(directional)
+	#x <- x + 0.25
+	#x[x < 0] <- 0
+	#x <- (100000 * x) / sum(x) 
+	#big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
 	#return(big.profile)
 	
 	for (i in 1:length(profiles)){
@@ -589,7 +599,11 @@ chip.heatmaps.insulators.fromfile <- function(folder, width){
 		jpeg(paste(folder,'/sortedby_', gene, ".jpeg", sep=''),4000,4000)
 		chip.heatmap(x1, '')
 		dev.off()
-		return()
+		
+		jpeg(paste(folder,'/directionality_sortedby_', gene, ".jpeg", sep=''),round(4000 / length(profiles),0),4000,)
+		chip.heatmap(directional[ordering,],'',"red")
+		dev.off()
+		#return()
 	}
 }
 
@@ -608,7 +622,7 @@ chip.heatmaps.process <- function(x, width){
 }
 
 # uses heatmap.2 to print out a heatmap for ChIP values. Variety of colors available.
-chip.heatmap <- function(x, title){
+chip.heatmap <- function(x, title, colour="blue"){
 	require(gplots)
 	require(RColorBrewer)
 
@@ -617,9 +631,13 @@ chip.heatmap <- function(x, title){
 	yellow.blue <- c(brewer.pal(9, "YlOrBr")[9:1], brewer.pal(9, "Blues")[1:9])
 	blue.yellow <- yellow.blue[18:1]
 	blues <- brewer.pal(9, "Blues")
+	reds <- brewer.pal(9, "Reds")
 	
+	if (colour[1] == "blue"){ colour <- blues}
+	if (colour[1] == "yellow.orange.red"){ colour <- yellow.orange.red}
+	if (colour[1] == "red"){ colour <- reds}
 	#heatmap.2(x1)
-	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(blues)(100))
+	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(colour)(100))
 
 }
 
