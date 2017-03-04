@@ -15,6 +15,9 @@ Input file is the "reduced diagonal" representation: chr	Lmost	Rmost	count
 Writes a WIG file
 
 This script was originally called Find_boundaries_attempt1
+
+Modified to allow it to also output a simple count of hte total Hi-C reads in the window (no direction component)
+by using the -t --total tag
 '''
 from optparse import OptionParser
 from math import log
@@ -33,6 +36,8 @@ def parse_options():
 					  help="width about diagonal to skip, in bins", metavar="SKIP")
 	parser.add_option("-s", "--file_stem", dest="file_stem",
 					  help="stem for outfiles", metavar="STEM")
+	parser.add_option("-t", "--total", dest="total", default=False,
+					  help="total mode, prints just the total reads in area defined by w and d, no direction", metavar="TOTAL")
 
 	(options, args) = parser.parse_args()
 	return options
@@ -89,7 +94,10 @@ def Score_boundaries(bin_counts, sizes, chromosomes):
 			diff = log((right_sum + 0.5) / (left_sum + 0.5), 10) #pseudocounts
 			left_coord = str(bin1 * bin_size)
 			right_coord = str((bin1 * bin_size) + bin_size - 1)
-			outfile.write('chr' + chr + '\t' + left_coord + '\t' + right_coord + '\t' + str(diff) + '\n')
+			if (options.total):
+				outfile.write('chr' + chr + '\t' + left_coord + '\t' + right_coord + '\t' + str(left_sum + right_sum) + '\n')
+			else:
+				outfile.write('chr' + chr + '\t' + left_coord + '\t' + right_coord + '\t' + str(diff) + '\n')
 	outfile.close()
 
 # Main section calling everything
