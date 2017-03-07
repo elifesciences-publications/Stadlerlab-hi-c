@@ -59,7 +59,7 @@ heatmap.natural <- function(x){
 	blue.yellow <- yellow.blue[18:1]
 	blues <- brewer.pal(9, "Blues")
 	
-	heatmap.2(x,dendrogram='none', Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(blues)(10000))
+	heatmap.2(x,dendrogram='none', Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(blue.yellow)(10000))
 }
 
 
@@ -126,6 +126,14 @@ HiC.matrix.scale.log <- function(x){
 		}
 	}
 	return (x1)
+}
+
+HiC.matrix.processfromfile <- function(filename){
+	x <- read.matrix(filename)
+	x <- HiC.matrix.vanilla.normalize(x)
+	x <- HiC.matrix.scale.log(x)
+	x <- histogram.equalize(x)
+	return(x)
 }
 
 # Performs histogram equalization on a matrix.
@@ -541,7 +549,7 @@ chip.heatmaps.folder.all <- function(folder, width){
 		if(grepl('.txt',file)){
 			path <- paste(folder, file,sep='/')
 			x <- read.table(path)
-			x <- chip.heatmaps.process(x, width)
+			x <- chip.heatmaps.process(x, width,40,40)
 			gene.name <- gsub('.txt','',file)
 			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
 			jpeg(paste(folder,'/',gene.name,'.jpeg',sep=''),4000,4000)
@@ -608,12 +616,14 @@ chip.heatmaps.insulators.fromfile <- function(folder, width){
 }
 
 # subfunction that takes a single ChIP individual value matrix, compresses top 10%, makes all negative values 0, sorts by the middle 81 columns.
-chip.heatmaps.process <- function(x, width){
+chip.heatmaps.process <- function(x, width, order.pos1, order.pos2){
 	middle <- round(ncol(x) / 2,0)
+	#print(middle)
 	top.compress <- quantile(x[,middle],0.9)
 	x1 <- x[,(middle - width):(middle + width)]
 	x1 <- as.matrix(x1)
-	row.sums <- apply(x[,(middle - 40):(middle + 40)], MARGIN=1, sum)
+	
+	row.sums <- apply(x[,(middle - order.pos1):(middle + order.pos2)], MARGIN=1, sum)
 	#row.sums <- apply(x[,(middle - 10):(middle + 10)], MARGIN=1, sum)
 	x1 <- x1[order(row.sums,decreasing=TRUE),]
 	x1[x1 > top.compress] <- top.compress

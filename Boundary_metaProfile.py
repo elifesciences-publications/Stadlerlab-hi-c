@@ -23,31 +23,41 @@ def parse_options():
 					  help="bin size bp", metavar="BINSIZE")
 	parser.add_option("-i", "--individual", dest="individual", default=False,
 					  help="Print individual lines? (any character)", metavar="INDIV")
+	parser.add_option("-g", "--gff", dest="gff", default=False,
+					  help="Is position file in gff format?", metavar="GFF")
 
 	(options, args) = parser.parse_args()
 	return options
 
 def add_position(line, genome, window, bin_size, counts, individual, outfile):
 	line = line.rstrip()
-	(chr, positions) = line.split(':')
-	(pos1, pos2) = positions.split('-')
+	(chr, pos1, pos2) = ('','','')
+	if (options.gff):
+		items = line.split()
+		chr = items[0]
+		pos1 = items[3]
+		pos2 = items[4]
+	else:
+		(chr, positions) = line.split(':')
+		(pos1, pos2) = positions.split('-')
 	bin_Lmost = int(int(pos1) / bin_size)
 	local_counts = {}
 	local_sum = 0
 
-	for i in range(-1 * window, window):
-		bin = bin_Lmost + i
-		if (bin in genome[chr]):
-			local_counts[i] = genome[chr][bin]
-			local_sum += genome[chr][bin]
-		else:
-			local_counts[i] = 0
-	if (individual):
-		outfile.write(line)
+	if (chr in genome):
 		for i in range(-1 * window, window):
-			outfile.write('\t' + str(local_counts[i]))
-		outfile.write('\n')
-	add_row(local_counts, counts, window)
+			bin = bin_Lmost + i
+			if (bin in genome[chr]):
+				local_counts[i] = genome[chr][bin]
+				local_sum += genome[chr][bin]
+			else:
+				local_counts[i] = 0
+		if (individual):
+			outfile.write(chr + ':' + pos1 + '-' + pos2)
+			for i in range(-1 * window, window):
+				outfile.write('\t' + str(local_counts[i]))
+			outfile.write('\n')
+		add_row(local_counts, counts, window)
 
 def normalize_row(local_counts, local_sum):
 	norm_counts = {}
@@ -77,8 +87,6 @@ def add_feature(line, genome, bin_size):
 		genome[chr] = {}
 		genome[chr][bin] = value
 			
-
-
 
 
 options = parse_options()
@@ -111,10 +119,7 @@ for line in pos_file:
 
 pos_file.close()
 
-
 if (not individual):
-	
-
 	for i in range(-1 * window, window):
 		outfile.write(str(i) + '\t' + str(counts[i]) + '\n')
 

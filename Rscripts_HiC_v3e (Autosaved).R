@@ -128,6 +128,15 @@ HiC.matrix.scale.log <- function(x){
 	return (x1)
 }
 
+HiC.matrix.processfromfile <- function(filename){
+	x <- read.matrix(filename)
+	x <- HiC.matrix.vanilla.normalize(x)
+	x <- HiC.matrix.scale.log(x)
+	x <- histogram.equalize(x)
+	return(x)
+}
+
+
 # Performs histogram equalization on a matrix.
 histogram.equalize <- function(x){
 	x1 <- round(x, digits=2)
@@ -333,6 +342,7 @@ HiC.plot.decay.addMeans <- function(x, color){
 	points(x.vals, means, col=color, type="l", lty=2,lwd=0.8)
 }
 
+# Makes a uniformly decaying Hi-C matrix with a decay profile equal to experimentally supplied data in X. Calculates the average values at various distances from teh diagonal in the experimental data, then assigns those values to every row around the diagonal.
 HiC.make.uniform <- function(x,width,size){
 	x.middles <- HiC.matrix.extractMiddle(x, width)
 	#x.decay <- x.middles[,51:101]
@@ -341,16 +351,15 @@ HiC.make.uniform <- function(x,width,size){
 	for (i in 1:size){
 		start <- max((width + 2) - i, 1)
 		end <-  min((width + 1), size - i + 1) + width
-		#print(paste(start,end))
 		start.zeros <- i + start - width - 2
 		end.zeros <- size - (i + end - width) + 1
 		new.row <- c(rep(0, start.zeros), x.means[start:end], rep(0, end.zeros))
 		x.new[i,] <- new.row
-		#print(paste(start, end, start.zeros, end.zeros))
 	}
 	return(x.new)
 }
 
+# Makes little blocks of 'doped' values along the diagonal. Makes boxes of size n by n (n defined by size variable) that have all counts increased by multiplying by supplied factor. Boxes alternate, with an altered box followed by an unaltered box.
 diagonal.dope <- function(x, size, factor){
 	x1 <- x
 	for (i in seq(1, nrow(x), 2*size)){
@@ -364,6 +373,7 @@ diagonal.dope <- function(x, size, factor){
 	return(x1)
 }
 
+# Makes heatmap plots for all .txt files in a supplied folder. Designed for "local" maps. Data can be logged or histogram equalized depending on preference.
 HiC.localPlot.from.folder <- function(folder, outfolder, LOG=FALSE,HISTEQ=FALSE){
 	files <- list.files(folder)
 	for (file in files){
@@ -381,7 +391,6 @@ HiC.localPlot.from.folder <- function(folder, outfolder, LOG=FALSE,HISTEQ=FALSE)
 			outfile <- paste(outfile, '_histeq', sep='')
 		}
 		median <- quantile(x, 0.9)[1]
-		#x[x < median] <- median
 		outfile <- paste(outfile, '.jpeg', sep='')
 		jpeg(outfile, width = 4000, height = 4000)
 		heatmap.natural(x)
@@ -411,8 +420,8 @@ dinucleotide.digitalString <- function(seq, dinuc){
 	return(hits)
 }
 
+# Takes a digital vector of dinucleotide positions, plots either autocorrelation or fourier transform.
 dinucleotide.plot.acf <- function(seq, dinuc, funct='ACF'){
-#flooey <- function(seq, dinuc, funct='ACF'){
 	if(funct == 'ACF'){
 		ac <- acf(dinucleotide.digitalString(seq, dinuc),plot=FALSE)
 		plot(ac[2:length(ac[[1]])], main=dinuc)
@@ -437,7 +446,211 @@ dinucleotide.plotall.acf <- function(file, funct='ACF'){
 	}
 }
 
+# For binary ChIP matrix, sorts sequentially on columns and makes a heatmap
+chip.binary.sortedheatmap <- function(x, method.choice='euclidean'){
+	x <- as.matrix(x)
+	x <- x[order(x[,1],x[,2],x[,3],x[,4],x[,5],x[,6], decreasing=TRUE),]
+	#plot_ly(z=x, type="heatmap", x = colnames(x))
+	chip.binary.heatmap(x)
+}
 
+# For binary ChIP data, which is a bunch of rows representing boundary elements and columns representing presence/absece (1/0) of a ChIP factor. Makes 6 heatmaps, one sorted on each column. Currently hard-coded for 6 insulator proteins.
+chip.binary.singlysorted <- function(x, stem){
+	blues <- brewer.pal(9, "Blues")
+	ordering <- c(1:6,1:6)
+	for (i in 1:ncol(x)){
+		x1 <- x[,ordering[i:(i + 5)]]
+		x1 <- x1[order(x1[,1], decreasing=TRUE),]
+		jpeg(paste(stem, i,'.jpeg',sep=''),height=3000, width=3000)
+		heatmap.2(x1,Colv=NA,Rowv=NA,trace="none", dendrogram="none",labRow=NA,key=FALSE, cexCol=8, margins=c(50,50), col=blues)
+		dev.off()
+	}
+}
+
+# I think this is deprecated...
+chip.binary.heatmap <- function(x){
+	blues <- brewer.pal(9, "Blues")
+	heatmap.2(x,symm=TRUE,Colv=FALSE,Rowv=FALSE, trace="none",dendrogram="none",labRow=NA,key=FALSE,colsep=0:(ncol(x)+1),sepcolor="black",sepwidth=c(0.005,0.005), col=blues,margins=c(50,50),cexCol=8)
+}
+
+# Takes a binary matrix of factor occupancy, calculates for every pairwise combination of columns (every factor)
+# combination, the probability of finding B bound given A is bound, the probability of finding B bound given
+# A is not bound, and the ratio (enrichment)
+ChIP.conditional.occupancies <- function(x){
+	out <- c(1,1,1,1,1)
+	for (i in 1:ncol(x)){
+		for (j in 1:ncol(x)){
+			if (i != j){
+				compare <- x[,i] == x[,j]
+				p.j.given.i <- signif(nrow(x[x[,i] == 1 & x[,j] == 1,]) / nrow(x[x[,i] == 1,]), 3)
+				p.j.given.not.i <- signif(nrow(x[x[,i] == 0 & x[,j] == 1,]) / nrow(x[x[,i] == 0,]), 3)
+				enrichment <- signif(p.j.given.i / p.j.given.not.i, 3)
+				out <- rbind(out, c(colnames(x)[i], colnames(x)[j], p.j.given.i, p.j.given.not.i, enrichment))
+			}
+		}
+	}
+	return(out)
+}
+
+# Calculates the frequency of each unique combination of factor binding (actually counts occurrences of unique rows of any matrix)
+chip.factor.combofreq <- function(x){
+	library("plyr")
+	counts <- count(x)
+	return(counts[order(counts$freq, decreasing=TRUE),])
+}
+
+# Plots the cumulative profiles for ChIP data around a position. Takes as input a folder that has multiple .txt files that contain two columns: the position and the cumulative count. Makes plots for all files, puts them on a single output file (but comments can be made to return to a separate output per file). Prints as PDF.
+chip.metaprofile.multiple.fromfiles <- function(folder, outfile){
+	files <- list.files(folder)
+	pdf(outfile,100,100)
+	rows <- round((length(files[grep('.txt',files)]) / 4),0)
+	par(mfcol=c(rows,4)) #comment for single
+	par(mai=c(1.5,1.5,1.5,1.5)) #comment for single
+	for (file in files){
+		if(grepl('.txt',file)){
+			path <- paste(folder, file,sep='/')
+			x <- read.table(path)
+			gene.name <- gsub('.txt','',file)
+			plot(x[,1],x[,2],type="l",lwd=10, main=gene.name,xlab="",ylab="",cex.main=15, cex.axis=9,xaxt="n")
+			abline(v=0, lty=2,col=2)
+		}
+	}
+	dev.off()
+}
+
+#This appears to be the same as above...no idea why there are separate functions.
+chip.metaprofile.multiple.singlePlot <- function(folder){
+	files <- list.files(folder)
+	pdf(outfile,100,100)
+	rows <- round((length(files[grep('.txt',files)]) / 4),0)
+	par(mfcol=c(rows,4)) #comment for single
+	par(mai=c(1.5,1.5,1.5,1.5)) #comment for single
+	for (file in files){
+		if(grepl('.txt',file)){
+			path <- paste(folder, file,sep='/')
+			x <- read.table(path)
+			gene.name <- gsub('.txt','',file)
+			#outfile <- paste(folder, '/',gene.name,'.pdf',sep='') #uncomment for single
+			#jpeg(outfile, 1000,100)
+			#pdf(outfile) #uncomment for single
+			#plot(x[,1],x[,2],type="l",lwd=2.5, main=gene.name,xlab="Distance from Boundary",ylab="Cumulative Enrichment") #uncomment for single
+			plot(x[,1],x[,2],type="l",lwd=10, main=gene.name,xlab="",ylab="",cex.main=15)
+			abline(v=0, lty=2,col=2)
+			#dev.off()
+			#return()
+		}
+	}
+	dev.off()
+}
+
+# Takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row) and a width. Makes a heatmap for each txt file, printing a JPEG. Width determines number of bins around middle (width=40 gives 81 columns). Resulting plots are sorted becaues they are processed with chip.heatmaps.process()
+chip.heatmaps.folder.all <- function(folder, width){
+	files <- list.files(folder)
+	for (file in files){
+		if(grepl('.txt',file)){
+			path <- paste(folder, file,sep='/')
+			x <- read.table(path)
+			x <- chip.heatmaps.process(x, width,40,40)
+			gene.name <- gsub('.txt','',file)
+			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
+			jpeg(paste(folder,'/',gene.name,'.jpeg',sep=''),4000,4000)
+			chip.heatmap(x, width, gene.name)
+			dev.off()
+		}
+	}
+}
+
+# Hard-codey script that takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row), grabs the ones corresponding to the list in genes. Can actually put anything there. Script processes each individual heatmap by compressing top 10%, making all negative values 0, and scaling by normalizing to sum. Combines these individual matrices into a larger matrix, each experiment separated by 50 columns of 0's. Then sorts on each column independently, prints a heatmap for sorting on each column. Pretty slow because these processes are slow. Just added feature that makes a separate file with the sorted  directionality Hi-C data, printed in red
+chip.heatmaps.insulators.fromfile <- function(folder, width){
+	genes <- c('BEAF-32','CP190','CTCF','GAF','mod(mdg4)','Su(Hw)','DNase_S5_rep1')
+	#genes <- c('BEAF-32','DNase_S5_rep1')
+	profiles <- list()
+	big.profile <- data.frame()
+	for (i in 1:length(genes)){
+		gene <- genes[i]
+		path <- paste(folder, '/',gene,'.txt',sep='')
+		x <- read.table(path,row.names=1)
+		profiles[[i]] <- x
+		#process these guys a little
+		middle <- round(ncol(x) / 2,0)
+		x[x < 0] <- 0
+		top.compress <- quantile(x[,middle],0.9)
+		x[x > top.compress] <- top.compress
+		x <- (100000 * x) / sum(x) # just a scaling function since different datasets have different scales
+		if(length(big.profile) > 0){
+			big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
+		}
+		else{
+			big.profile <- x
+		}	
+	}
+	directionality.path <- paste(folder, '/','nc14_HiC_directionality','.txt',sep='')
+	directional <- read.table(directionality.path, row.names=1)
+	middle <- round(ncol(directional) / 2,0)
+	directional <- directional[,(middle - width):(middle + width)]
+	top.compress <- quantile(directional[,middle],0.9)
+	bottom.compress <- quantile(directional[,middle],0.1)
+	directional[directional > top.compress] <- top.compress
+	directional[directional < bottom.compress] <- bottom.compress
+	directional <- as.matrix(directional)
+	#x <- x + 0.25
+	#x[x < 0] <- 0
+	#x <- (100000 * x) / sum(x) 
+	#big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
+	#return(big.profile)
+	
+	for (i in 1:length(profiles)){
+		middle <- round(ncol(profiles[[i]]) / 2,0)
+		row.sums <- apply(profiles[[i]][,(middle - 40):(middle + 40)], MARGIN=1, sum)
+		ordering <- order(row.sums,decreasing=TRUE)
+		x1 <- as.matrix(big.profile[ordering,])
+		gene <- genes[i]
+		jpeg(paste(folder,'/sortedby_', gene, ".jpeg", sep=''),4000,4000)
+		chip.heatmap(x1, '')
+		dev.off()
+		
+		jpeg(paste(folder,'/directionality_sortedby_', gene, ".jpeg", sep=''),round(4000 / length(profiles),0),4000,)
+		chip.heatmap(directional[ordering,],'',"red")
+		dev.off()
+		#return()
+	}
+}
+
+# subfunction that takes a single ChIP individual value matrix, compresses top 10%, makes all negative values 0, sorts by the middle 81 columns.
+chip.heatmaps.process <- function(x, width, order.pos1, order.pos2){
+	middle <- round(ncol(x) / 2,0)
+	#print(middle)
+	top.compress <- quantile(x[,middle],0.9)
+	x1 <- x[,(middle - width):(middle + width)]
+	x1 <- as.matrix(x1)
+	
+	row.sums <- apply(x[,(middle - order.pos1):(middle + order.pos2)], MARGIN=1, sum)
+	#row.sums <- apply(x[,(middle - 10):(middle + 10)], MARGIN=1, sum)
+	x1 <- x1[order(row.sums,decreasing=TRUE),]
+	x1[x1 > top.compress] <- top.compress
+	x1[x1 < 0] <- 0
+	return(x1)
+}
+
+# uses heatmap.2 to print out a heatmap for ChIP values. Variety of colors available.
+chip.heatmap <- function(x, title, colour="blue"){
+	require(gplots)
+	require(RColorBrewer)
+
+	yellow.orange.red <- c("white",brewer.pal(9, "YlOrRd"))
+	orange.and.blue <- c(brewer.pal(9, "Oranges")[7:1], brewer.pal(9, "Blues")[1:9])
+	yellow.blue <- c(brewer.pal(9, "YlOrBr")[9:1], brewer.pal(9, "Blues")[1:9])
+	blue.yellow <- yellow.blue[18:1]
+	blues <- brewer.pal(9, "Blues")
+	reds <- brewer.pal(9, "Reds")
+	
+	if (colour[1] == "blue"){ colour <- blues}
+	if (colour[1] == "yellow.orange.red"){ colour <- yellow.orange.red}
+	if (colour[1] == "red"){ colour <- reds}
+	#heatmap.2(x1)
+	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(colour)(100))
+
+}
 
 
 ########################################################################
@@ -449,10 +662,12 @@ read.matrix <- function(x){
 	return(as.matrix(read.table(x)))
 }
 
+# Standard formatted write.table with quotes off and tab sep
 write.fileout <- function(x, file){
 	write.table(x, file, sep = '\t', quote=FALSE, row.names=FALSE, col.names=FALSE)
 }
 
+# returns reverse complement
 rev.comp <- function(x){
 	x <- toupper(x)
 	x <- chartr('GATC','CTAG', x)
@@ -460,6 +675,7 @@ rev.comp <- function(x){
 	return(x)
 }
 
+# Plots the frequency spectrum of a fourier transform
 plot.frequency.spectrum <- function(X.k, title, ylimits = c(0,range(Mod(X.k))[2]),xlimits=c(0,length(X.k))) {
   plot.data  <- cbind(0:(length(X.k)-1), Mod(X.k))
 
@@ -471,6 +687,7 @@ plot.frequency.spectrum <- function(X.k, title, ylimits = c(0,range(Mod(X.k))[2]
        xlim=xlimits, ylim=ylimits)
 }
 
+# Takes a fasta file (or any sequence file) and puts all the sequences together as a single string for searching, etc.
 seq.asSingleString.fromFile <- function(file){
 	seq <- read.table(file)
 	seq <- seq[grep('>',seq[,1], invert=TRUE),] #matches all rows without '>'
