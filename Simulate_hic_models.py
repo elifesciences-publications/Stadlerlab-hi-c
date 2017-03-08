@@ -7,13 +7,15 @@ import re
 import random
 from random import randint
 from numpy import percentile
+from numpy import power
+from numpy import random
 
 def parse_options():
 	parser = OptionParser()
 	parser.add_option("-d", "--dnase_file", dest="dnase_file",
 					  help="WIG file of DNase accessibility", metavar="DNASEFILE")
-	parser.add_option("-p", "--distance_file", dest="distance_file",
-					  help="file with distance probabilities", metavar="DISTFILE")
+	parser.add_option("-p", "--dist_exp", dest="dist_exp", default=2,
+					  help="exponent for power law modeling of distance decay. Give positive, it's negative", metavar="DISTEXP")
 	parser.add_option("-c", "--chromosome", dest="chromosome",
 					  help="chromosome", metavar="CHROMOSOME")
 	parser.add_option("-b", "--bin_size", dest="bin_size", default=100000,
@@ -29,22 +31,6 @@ def parse_options():
 
 	(options, args) = parser.parse_args()
 	return options
-
-# Read a file of probabilities of seeing a read at various bin distances. Returns an array with number of 
-# entries proportional to probability, so randomly selecting member of this array returns 
-def read_distances(file):
-	distances = []
-	expansion_factor = 10000 #multiply the probability by this, take int value. Means anything with p < 1/expansion factor will be 0, also array will be ~ expansion_factor long (aprox bc of rounding)
-	dist_file = open(file, 'r')
-	for line in dist_file:
-		line = line.rstrip()
-		(dist, prob) = line.split()
-		prob = float(prob)
-		dist = int(dist)
-		iterations = int(prob * expansion_factor)
-		distances = distances + ([dist] * iterations) #this ([n] * i) notation makes an array of n repeated i times, the + is a concatenation of lists
-	dist_file.close()
-	return(distances)
 
 def read_dnase(file, chr, bin_size):
 	dnase = {}
@@ -67,9 +53,11 @@ def read_dnase(file, chr, bin_size):
 	dnase_file.close()
 	return(dnase, max_bin)
 
-def select_bin_from_dist(bin1, distances, max_bin):
+def select_bin_from_dist(bin1, max_bin, dist_exp):
 	for i in range(0,1000): #this is really a while true, I jsut don't want to get stuck in an infinite loop during testing
-		dist = random.choice(distances)
+		drawn_value = float(random.power(dist_exp,1))
+		dist = max_bin - int(drawn_value * max_bin) - 1 #converts drawn value (0 to 1) to a bin distance
+		#print(dist)
 		direction = randint(0,1)
 		if (direction == 0): #left
 			bin2 = bin1 - dist
@@ -133,7 +121,7 @@ options = parse_options()
 a = int(options.a)
 x = float(options.x)
 bin_size = int(options.bin_size)
-distance_array = read_distances(options.distance_file)
+dist_exp = float(options.dist_exp)
 (dnase_values, max_bin) = read_dnase(options.dnase_file, options.chromosome, bin_size) 
 dnase_norm_factor = percentile(list(dnase_values.values()), 95)
 count_total = 0
@@ -142,7 +130,7 @@ count_matrix = {}
 
 for i in range(0, iterations):
 	bin1 = randint(0, max_bin)
-	bin2 = select_bin_from_dist(bin1, distance_array, max_bin)
+	bin2 = select_bin_from_dist(bin1, max_bin, dist_exp)
 	links_formed = generate_linkages(bin1, bin2, dnase_values, dnase_norm_factor, count_matrix, a, x)
 
 print_matrix(count_matrix, max_bin, options.outfile)
