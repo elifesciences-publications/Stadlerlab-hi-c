@@ -136,6 +136,13 @@ HiC.matrix.processfromfile <- function(filename){
 	return(x)
 }
 
+HiC.heatmap.plotfromfile <- function(filename){
+	x <- HiC.matrix.processfromfile(filename)
+	jpeg(paste(gsub('.txt','',filename),'.jpeg',sep=''),4000,4000)
+	heatmap.natural(x)
+	dev.off()
+}
+
 # Performs histogram equalization on a matrix.
 histogram.equalize <- function(x){
 	x1 <- round(x, digits=2)

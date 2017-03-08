@@ -1,5 +1,6 @@
 '''
-
+Takes a HI-C paired map file and a bin size, calculate the probability of observing links between two bins
+separated by n bins. Prints as distance [tab] probability
 '''
 from optparse import OptionParser
 import sys

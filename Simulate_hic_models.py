@@ -22,8 +22,8 @@ def parse_options():
 					  help="a, free ends = (ad)^x", metavar="A")
 	parser.add_option("-x", "--x", dest="x", default=0.8,
 					  help="x, free ends = (ad)^x", metavar="X")
-	parser.add_option("-l", "--count_limit", dest="count_limit", default=10000000,
-					  help="number of counts to generate in matrix", metavar="COUNTLIMIT")
+	parser.add_option("-i", "--iterations", dest="iterations", default=10000000,
+					  help="number of times to iterate", metavar="ITERATIONS")
 	parser.add_option("-o", "--outfile", dest="outfile", default='HiC_simulation.txt',
 					  help="outfile", metavar="OUTFILE")
 
@@ -84,20 +84,17 @@ def generate_linkages(bin1, bin2, dnase_values, dnase_norm_factor, count_matrix,
 	# get free ends
 	free_ends_bin1 = get_free_ends(bin1, dnase_values, dnase_norm_factor, a, x)
 	free_ends_bin2 = get_free_ends(bin2, dnase_values, dnase_norm_factor, a, x)
-	#print(str(dnase_values[bin1]) + '    ' + str(free_ends_bin1) + '\n' + str(dnase_values[bin2]) + '    ' +  str(free_ends_bin2))
-	#quit()
-	# put free ends into a list
-	#end_list = make_free_end_list (bin1, bin2, free_ends_bin1, free_ends_bin2)
 	# randomly pair ends, reducing list each time
 	pair_ends(bin1, bin2, free_ends_bin1, free_ends_bin2, count_matrix)
 	return int((free_ends_bin1 + free_ends_bin2) / 2)
 
 def get_free_ends(bin, dnase_values, dnase_norm_factor, a, x):
 	norm_dnase = dnase_values[bin] / dnase_norm_factor
-	return (int((a * norm_dnase) ** x))
-
-#def make_free_end_list (bin1, bin2, free_ends_bin1, free_ends_bin2):
-#	pass
+	num_free_ends = int(a * (norm_dnase ** x))
+	if (num_free_ends >= 1): #if a region never has a free end the program crashes with a key error, plus this just doesn't make sense
+		return (num_free_ends)
+	else:
+		return (1)
 
 def pair_ends (bin1, bin2, free_ends_bin1, free_ends_bin2, count_matrix):
 	ends = ([bin1] * free_ends_bin1) + ([bin2] * free_ends_bin2)
@@ -138,22 +135,15 @@ x = float(options.x)
 bin_size = int(options.bin_size)
 distance_array = read_distances(options.distance_file)
 (dnase_values, max_bin) = read_dnase(options.dnase_file, options.chromosome, bin_size) 
-#print(dnase_values.values())
-#test = dnase_values.values()
-#print(type(test))
 dnase_norm_factor = percentile(list(dnase_values.values()), 95)
 count_total = 0
-count_limit = int(options.count_limit)
+iterations = int(options.iterations)
 count_matrix = {}
 
-while True:
-	if (count_total >= count_limit):
-		break
+for i in range(0, iterations):
 	bin1 = randint(0, max_bin)
 	bin2 = select_bin_from_dist(bin1, distance_array, max_bin)
-	#quit()
 	links_formed = generate_linkages(bin1, bin2, dnase_values, dnase_norm_factor, count_matrix, a, x)
-	count_total += links_formed
 
 print_matrix(count_matrix, max_bin, options.outfile)
 
