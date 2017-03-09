@@ -33,6 +33,7 @@ import sys
 import re
 import random
 from random import randint
+from random import shuffle
 from numpy import percentile
 
 def parse_options():
@@ -143,9 +144,12 @@ def get_free_ends(bin, dnase_values, dnase_norm_factor, a, x):
 # random way if we are concerned about that assumption.
 def pair_ends (bin1, bin2, free_ends_bin1, free_ends_bin2, count_matrix):
 	ends = ([bin1] * free_ends_bin1) + ([bin2] * free_ends_bin2)
+	shuffle(ends) #surprising syntax. Doesn't return the shuffled list, rather shuffles it in place
+	#print(ends)
 	for i in range(0, int(len(ends) / 2)): #correct number of iterations to use all ends, leave one dangling if necessary ::shrug::
-		end1 = ends.pop(randint(0,len(ends) - 1)) 
-		end2 = ends.pop(randint(0,len(ends) - 1))
+		end1 = ends.pop() 
+		end2 = ends.pop()
+		#print(str(end1) + '  ' + str(end2))
 		add_linkage(end1, end2, count_matrix)
 		if (end1 != end2):
 			add_linkage(end2, end1, count_matrix)
