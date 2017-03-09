@@ -366,9 +366,17 @@ HiC.plot.decay <- function(x,new=TRUE,color){
 		plot(x.vals,x.vals, type="n", ylim = c(0,max), xlab = "Distance (kb)", ylab = "Fraction of Total Reads")
 	}
 	for (i in 1:height){
-		points(x.vals, x[i,], type = "l",lwd=10,col=color)
+		points(x.vals, x[i,], type = "l",lwd=1,col=color)
 	}
 	
+}
+
+decay.figure.make <- function(nc14.filename, nc12.filename, width, outfile){
+	x <- read.matrix(nc14.filename)
+	x1 <- rbind(HiC.matrix.extractMiddle(grab.chr(x,'X'),width), HiC.matrix.extractMiddle(grab.chr(x,'2L'),width), HiC.matrix.extractMiddle(grab.chr(x,'2R'),width), HiC.matrix.extractMiddle(grab.chr(x,'3L'),width), HiC.matrix.extractMiddle(grab.chr(x,'3R'),width))
+	x1 <- HiC.matrix.normbyrowonly(x1)
+	HiC.plot.decay(x1, TRUE, rgb(0,0,1,0.01))
+	#return(x1)
 }
 
 HiC.plot.decay.addMeans <- function(x, color){
