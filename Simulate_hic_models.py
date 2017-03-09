@@ -215,6 +215,8 @@ standard_model = options.standard_model
 z = float(options.z)
 
 for i in range(0, iterations):
+	if (i % 1000000 == 0):
+		print(i)
 	bin1 = randint(0, max_bin)
 	bin2 = select_bin_from_dist(bin1, distance_array, max_bin)
 	if(bin2):

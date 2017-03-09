@@ -128,20 +128,51 @@ HiC.matrix.scale.log <- function(x){
 	return (x1)
 }
 
-HiC.matrix.processfromfile <- function(filename){
+# "compresses" a matrix by collapsing all values below the supplied bottom percentile to the value at the percentile,
+# and the same for the top. Contrast enhancing.
+HiC.matrix.compress <- function(x, top.percentile=1, bottom.percentile=0.60){
+	top.compress <- quantile(x, top.percentile)
+	bottom.compress <- quantile(x, bottom.percentile)
+	x1 <- x
+	x1[x1 > top.compress] <- top.compress
+	x1[x1 < bottom.compress] <- bottom.compress
+	return(x1)
+}
+
+# Wrapper for basic processing of a binned Hi-C file. Reads in, does vanilla norm, log, compression, hist. equalizing.
+HiC.matrix.processfromfile <- function(filename,top,bottom){
 	x <- read.matrix(filename)
 	x <- HiC.matrix.vanilla.normalize(x)
 	x <- HiC.matrix.scale.log(x)
+	x <- HiC.matrix.compress(x, top, bottom)
 	x <- histogram.equalize(x)
 	return(x)
 }
 
-HiC.heatmap.plotfromfile <- function(filename){
-	x <- HiC.matrix.processfromfile(filename)
+# Processes and creates heatmap from a Hi-C binned file. Uses proessing routine above.
+HiC.heatmap.plotfromfile <- function(filename, top=1, bottom=0.50){
+	x <- HiC.matrix.processfromfile(filename,top,bottom)
+	#jpeg(paste(gsub('.txt','',filename),'_bot', bottom,'.jpeg',sep=''),4000,4000)
 	jpeg(paste(gsub('.txt','',filename),'.jpeg',sep=''),4000,4000)
 	heatmap.natural(x)
 	dev.off()
 }
+
+# One-off code for trying a series of lower compression values for a Hi-C binned folder.
+HiC.heatmap.compression.series <- function(filename){
+	x <- read.matrix(filename)
+	x <- HiC.matrix.vanilla.normalize(x)
+	x <- HiC.matrix.scale.log(x)
+	for (i in seq(0.25, 0.75, 0.05)){
+		x1 <- HiC.matrix.compress(x, 1, i)
+		x1 <- histogram.equalize(x1)
+		jpeg(paste(gsub('.txt','',filename),'_bot', i,'.jpeg',sep=''),4000,4000)
+		heatmap.natural(x1)
+		dev.off()
+	}
+}
+
+
 
 # Performs histogram equalization on a matrix.
 histogram.equalize <- function(x){
