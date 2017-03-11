@@ -71,6 +71,7 @@ max_bin = {}
 line_count = 0
 
 for f in files:
+	print('Reading ' + f + '...')
 	file1 = open(f, 'r')
 
 	for line in file1:

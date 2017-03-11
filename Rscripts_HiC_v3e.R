@@ -88,6 +88,8 @@ HiC.matrix.vanilla.normalize <- function(x){
 			x1[i,j] <- x[i,j] * (1/R.sum) * (1/C.sum) * 1E10
 		}
 	}
+	rownames(x1) <- rownames(x)
+	colnames(x1) <- colnames(x)
 	return(x1)
 }
 
@@ -142,6 +144,10 @@ HiC.matrix.compress <- function(x, top.percentile=1, bottom.percentile=0.60){
 # Wrapper for basic processing of a binned Hi-C file. Reads in, does vanilla norm, log, compression, hist. equalizing.
 HiC.matrix.processfromfile <- function(filename,top,bottom){
 	x <- read.matrix(filename)
+	x <- HiC.matrix.process.standard(x)
+	return(x)
+}
+HiC.matrix.process.standard <- function(x,top,bottom){	
 	x <- HiC.matrix.vanilla.normalize(x)
 	x <- HiC.matrix.scale.log(x)
 	x <- HiC.matrix.compress(x, top, bottom)
@@ -201,6 +207,8 @@ histogram.equalize <- function(x){
 			x2[j,k] <- (((cdf[[as.character(x1[j,k])]] - cdf.min) / denom) * 255)
 		}
 	}
+	rownames(x2) <- rownames(x)
+	colnames(x2) <- colnames(x)
 	return(x2)
 }
 
@@ -355,37 +363,6 @@ HiC.matrix.normbyrowonly <- function(x){
 	return(as.matrix(x1))
 }
 
-# Takes a matrix of values (design is for them to be centered on diagonal values) and plots each row independently. Recommended colors rgb(0,0,1,0.025) and rgb(1,0.6,0,0.025)
-HiC.plot.decay <- function(x,new=TRUE,color){
-	max <- max(x)
-	width <- ncol(x)
-	height <- nrow(x)
-	x.vals <- seq(-100 *((width - 1) / 2), 100 *((width - 1) / 2),100)
-	#return(x.vals)
-	if(new){
-		plot(x.vals,x.vals, type="n", ylim = c(0,max), xlab = "Distance (kb)", ylab = "Fraction of Total Reads")
-	}
-	for (i in 1:height){
-		points(x.vals, x[i,], type = "l",lwd=1,col=color)
-	}
-	
-}
-
-decay.figure.make <- function(nc14.filename, nc12.filename, width, outfile){
-	x <- read.matrix(nc14.filename)
-	x1 <- rbind(HiC.matrix.extractMiddle(grab.chr(x,'X'),width), HiC.matrix.extractMiddle(grab.chr(x,'2L'),width), HiC.matrix.extractMiddle(grab.chr(x,'2R'),width), HiC.matrix.extractMiddle(grab.chr(x,'3L'),width), HiC.matrix.extractMiddle(grab.chr(x,'3R'),width))
-	x1 <- HiC.matrix.normbyrowonly(x1)
-	HiC.plot.decay(x1, TRUE, rgb(0,0,1,0.01))
-	#return(x1)
-}
-
-HiC.plot.decay.addMeans <- function(x, color){
-	width <- ncol(x)
-	height <- nrow(x)
-	x.vals <- seq(-100 *((width - 1) / 2), 100 *((width - 1) / 2),100)
-	means <- apply(x, MARGIN=2, mean)
-	points(x.vals, means, col=color, type="l", lty=2,lwd=0.8)
-}
 
 # Makes a uniformly decaying Hi-C matrix with a decay profile equal to experimentally supplied data in X. Calculates the average values at various distances from teh diagonal in the experimental data, then assigns those values to every row around the diagonal.
 HiC.make.uniform <- function(x,width,size){
@@ -697,7 +674,123 @@ chip.heatmap <- function(x, title, colour="blue"){
 
 }
 
+# master script for making decay figure for paper
+decay.figure.make <- function(nc14.filename, nc12.filename, width, bin.size,  outfile){
+	x <- read.matrix(nc14.filename)
+	nc14 <- HiC.matrix.extractMiddles.allchr(x, width) #not sure what width I was using for figures originally...
+	x <- read.matrix(nc12.filename)
+	nc12 <- HiC.matrix.extractMiddles.allchr(x, width)
+	
+	nc12 <- HiC.matrix.normbyrowonly(nc12)
+	nc14 <- HiC.matrix.normbyrowonly(nc14)
+	pdf(outfile)
+	HiC.plot.decay(nc14, bin.size, "n", TRUE, rgb(0,0,1,0.1,0.7), -4, 0.3)
+	HiC.plot.decay.addMeans(nc14, bin.size, "blue")
+	HiC.plot.decay.addMeans(nc12, bin.size, rgb(1,0.4,0,0.7))
+	#4.8 is a good spacing for "o" style plotting, on outside of default balls. 3.2 is good for "l"
+	HiC.plot.decay(nc14, bin.size, "p", FALSE, rgb(0,0,1,0.025), -4.6, 1)
+	HiC.plot.decay(nc12, bin.size, "p", FALSE,rgb(1,0.4,0,0.025), 4.6, 1)
+	dev.off()
+}
 
+HiC.matrix.extractMiddles.allchr <- function(x, width){
+	x1 <- rbind(
+	HiC.matrix.extractMiddle(grab.chr(x,'X'),width), 
+	HiC.matrix.extractMiddle(grab.chr(x,'2L'),width), 
+	HiC.matrix.extractMiddle(grab.chr(x,'2R'),width), 
+	HiC.matrix.extractMiddle(grab.chr(x,'3L'),width), 
+	HiC.matrix.extractMiddle(grab.chr(x,'3R'),width)
+	)
+	return(x1)
+}
+
+# Takes a matrix of values (design is for them to be centered on diagonal values) and plots each row independently. Recommended colors rgb(0,0,1,0.025) and rgb(1,0.6,0,0.025). Bin size is in kilobases.
+HiC.plot.decay <- function(x, bin.size=100, plot.type="n",new=TRUE,color, offset=0, expansion=0.75){
+	max <- max(x)
+	width <- ncol(x)
+	height <- nrow(x)
+	x.vals <- seq((-1 * bin.size) *((width - 1) / 2), bin.size *((width - 1) / 2), bin.size)
+	#print(x.vals)
+	x.vals <- x.vals + offset
+	#return(x.vals)
+	if(new){
+		plot(x.vals,x.vals, type="n", ylim = c(0,0.7), xlab = "", ylab = "",cex.axis=2)
+	}
+	for (i in 1:height){
+		points(x.vals, x[i,], type = plot.type,pch=16,cex=expansion, lwd=1,col=color)
+	}
+	
+}
+
+# Overlay means on the decay plots, as a line currently
+HiC.plot.decay.addMeans <- function(x, bin.size, color){
+	width <- ncol(x)
+	height <- nrow(x)
+	x.vals <- seq((-1 * bin.size) *((width - 1) / 2), bin.size *((width - 1) / 2), bin.size)
+	means <- apply(x, MARGIN=2, mean)
+	points(x.vals, means, col=color, type="l", lty=1,lwd=2.5)
+}
+
+
+cool.region.get <- function(filename){
+	x <- read.matrix(filename)
+	x <- grab.chr(x, '3R')
+	x <- HiC.matrix.vanilla.normalize(x)
+	x <- HiC.matrix.scale.log(x)
+	x <- x[55:390,55:390]
+	x <- histogram.equalize(x)
+	return(x)
+}
+
+cool.region.make.heatmap <- function(filename, outfile, compress=0.2){
+	x <- cool.region.get(filename)
+	x <- HiC.matrix.compress(x, 1, compress)
+	jpeg(outfile, 4000, 4000)
+	heatmap.natural(x)
+	dev.off()
+}
+
+epigenomic.match.plot <- function(hic, epifile, outfile, exponent){
+	epi <- read.table(epifile, row.names=1)
+	epi <- epi[row.names(hic),1]
+	#epi <- epi / mean(epi)
+	epi <- epi - min(epi)
+	epi <- epi  / max(epi)
+	epi <- epi^exponent
+	pdf(outfile,25,6)
+	par(yaxp=c(0,10,10))
+	plot(epi, type="l", bty="n",xaxt="n",yaxt="n",xlab="",ylab="",lwd=10)
+	axis(side=2, col="black", at=c(0,1),labels=c(0,1))
+	dev.off()
+}
+
+decay.plot.sort.dnase <- function(hic, epifile, bin.size, width, outfile){
+	hic <- HiC.matrix.extractMiddles.allchr(hic, width)
+	epi <- read.table(epifile, row.names=1)
+	namelogical <- rownames(epi) %in% rownames(hic)
+	epi <- data.frame(epi[namelogical,], row.names=rownames(epi)[namelogical])
+	percentile66 <- quantile(epi[,1], 0.6666)
+	percentile33 <- quantile(epi[,1], 0.33333)
+	upper.third <- rownames(epi)[epi[,1] > percentile66]
+	middle.third <- rownames(epi)[epi[,1] < percentile66 & epi[,1] > percentile33]
+	bottom.third <- rownames(epi)[epi[,1] < percentile33]
+	#return(hic[upper.third,]) # issue is that some of the middle third names aren't in  hic
+	
+	upper <- HiC.matrix.normbyrowonly(hic[upper.third,])
+	middle <- HiC.matrix.normbyrowonly(hic[middle.third,])
+	bottom <- HiC.matrix.normbyrowonly(hic[bottom.third,])
+	pdf(outfile)
+	HiC.plot.decay(upper, bin.size, "n", TRUE, rgb(0,0,1,0.1,0.7), -4, 0.3)
+	
+	#4.8 is a good spacing for "o" style plotting, on outside of default balls. 3.2 is good for "l"
+	HiC.plot.decay(upper, bin.size, "p", FALSE, rgb(0,0,1,0.025), 4.6, 1)
+	HiC.plot.decay(upper, bin.size, "p", FALSE, rgb(0.9,0.9,0,0.025), 0, 1)
+	HiC.plot.decay(bottom, bin.size, "p", FALSE,rgb(1,0.4,0,0.025), -4.6, 1)
+	HiC.plot.decay.addMeans(upper, bin.size, "blue")
+	HiC.plot.decay.addMeans(middle, bin.size, rgb(1,1,0,0.7))
+	HiC.plot.decay.addMeans(bottom, bin.size, rgb(1,0.4,0,0.7))
+	dev.off()
+}
 ########################################################################
 # HELPER FUNCTIONS
 ########################################################################

@@ -138,18 +138,16 @@ def get_free_ends(bin, dnase_values, dnase_norm_factor, a, x):
 	else:
 		return (1)
 
-# Builds an array with entries of bin1 and bin2, with the number of each matching the calculated number of free ends. Iteratively
-# selects and extracts two random array entries, records them as a linkage in count matrix. Iterates until array is empty (or singlton left)
+# Builds an array with entries of bin1 and bin2, with the number of each matching the calculated number of free ends. Randomly shuffles the array,
+# then repeatedly extracts pairs of array entries, records them as a linkage in count matrix. Iterates until array is empty (or singlton left)
 # This is assumption of ligation driven to completion, but could probably also tweak this by modeling the number of iterations in some
 # random way if we are concerned about that assumption.
 def pair_ends (bin1, bin2, free_ends_bin1, free_ends_bin2, count_matrix):
 	ends = ([bin1] * free_ends_bin1) + ([bin2] * free_ends_bin2)
 	shuffle(ends) #surprising syntax. Doesn't return the shuffled list, rather shuffles it in place
-	#print(ends)
 	for i in range(0, int(len(ends) / 2)): #correct number of iterations to use all ends, leave one dangling if necessary ::shrug::
 		end1 = ends.pop() 
 		end2 = ends.pop()
-		#print(str(end1) + '  ' + str(end2))
 		add_linkage(end1, end2, count_matrix)
 		if (end1 != end2):
 			add_linkage(end2, end1, count_matrix)
@@ -193,6 +191,8 @@ def get_visible_prob_standardmodel(bin, dnase_values, dnase_norm_factor, z):
 # Prints the count matrix
 def print_matrix(count_matrix, max_bin, outfilename):
 	outfile = open(outfilename, 'w')
+	for i in range(0, max_bin):
+		
 	for i in range (0, max_bin):
 		for j in range (0, max_bin):
 			if (j != 0):
@@ -204,7 +204,7 @@ def print_matrix(count_matrix, max_bin, outfilename):
 		outfile.write('\n')
 	outfile.close()
 
-
+# MAIN 
 options = parse_options()
 a = int(options.a)
 x = float(options.x)
