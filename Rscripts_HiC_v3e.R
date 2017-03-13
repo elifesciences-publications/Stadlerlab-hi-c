@@ -1,36 +1,3 @@
-
-# Standard distance histogram with 1 kb steps
-HiC.dist.hist <- function(x, title){
-	hist(x$V1,breaks=c(seq(0,100000,1000),100000000),xlim=c(0,50000), col = 4, ylab="Counts",xlab="Distance", main=title)
-	abline(v=c(1000,5000,10000),lty=2,col=2)
-	pct.1kb <- length(x[x[,1] > 10000,1]) / length(x[,1]) * 100
-	pct.1kb <- paste(as.character(round(pct.1kb, digits=2)),'% > 1kb', sep='')
-	pct.10kb <- length(x[x[,1] > 100000,1]) / length(x[,1]) * 100
-	pct.10kb <- paste(as.character(round(pct.10kb, digits=2)),'% > 10kb', sep='')
-	legend("topright", c(pct.1kb, pct.10kb))
-}
-
-pct.greaterthan <- function(x,num){
-	x1 <- length(x[x[,1] > num,]) / length(x[,1])
-	print(x1)
-}
-
-# Custom histogram that represents fraction of total reads at 100 kb intervals, also tosses out things <10 kb
-
-HiC.dist.hist2 <- function(x, title){
-	x <- x[x[,1] > 10000,]
-	#return(x)
-	x.hist <- hist(x,breaks=c(seq(0,10000000,100000),100000000),xlim=c(0,10000000), col = 4, ylab="Counts",xlab="Distance", main=title)
-	
-}
-
-HiC.distance.distr.1 <- function(x, color){
-	x <- x[x[,1] > 2000,] #filter away cis reads (crude)
-	x.hist <- hist(x,breaks=seq(0,100000000,100000),plot=FALSE)
-	points(x.hist$counts/sum(x.hist$counts),type="l",col=color)
-	
-}
-
 #Takes a vector of distances and fits a model for scaling s^-1 (fractal globule) or s^-3/2 (equilibrium globule)
 HiC.distance.fit <- function(distances, n){
 	x <- distances[distances > 5000 & distances < 1e07] #reduce our space to something reasonable, within 1 Mb
@@ -48,7 +15,7 @@ HiC.distance.fit <- function(distances, n){
 	return(list(mod1, mod32))	
 }
 
-
+# This is my goto. Basic heatmap that I'm using for all Hi-C matrices, implemented using heatmap.2 and a variety of color schemes. 
 heatmap.natural <- function(x){
 	require(gplots)
 	require(RColorBrewer)
@@ -91,17 +58,6 @@ HiC.matrix.vanilla.normalize <- function(x){
 	rownames(x1) <- rownames(x)
 	colnames(x1) <- colnames(x)
 	return(x1)
-}
-
-# Scales a matrix to the median of the diagonal
-HiC.matrix.scale.diagonalMedian <- function(x){
-	x1 <- x
-	diagonal <- numeric()
-	for (i in 1:length(x1[1,])){
-		diagonal <- c(diagonal, x[i,i])
-	}
-	m <- median(diagonal)
-	return (x1 / m)
 }
 
 # Take the log of every position of a matrix. Also replaces all zero entries with minimum value (could just use 1, log value is 0)
@@ -147,6 +103,8 @@ HiC.matrix.processfromfile <- function(filename,top,bottom){
 	x <- HiC.matrix.process.standard(x)
 	return(x)
 }
+
+# Wrapper for processing a Hi-C matrix that is already loaded. Does vanilla norm, log, compression, hist. equalizing.
 HiC.matrix.process.standard <- function(x,top,bottom){	
 	x <- HiC.matrix.vanilla.normalize(x)
 	x <- HiC.matrix.scale.log(x)
@@ -271,12 +229,6 @@ HiC.click.coord <- function(chr.choice='all'){
 		print(paste(exact, window, sep = '     '))
 	}
 }
-# 0.1 to 1
-temp <- function(x){
-	x.vals <- seq(0.1, 1, 0.9 / nrow(x))
-	
-	plot(x.vals,x[,1],type="l",lwd=2)
-}
 
 #Zeros out everything but some given number of diagonal rows. So a width of 3 would leave the diagonal and the +1 and +2 diagonals, make everything else zero
 HiC.zeroOffDiag <- function(x, width){
@@ -294,11 +246,8 @@ HiC.zeroOffDiag <- function(x, width){
 		if (i > width + 1){
 			x1[i,1:cols.to.zero.below] <- 0
 			cols.to.zero.below <- cols.to.zero.below + 1
-		}
-		
-		
+		}		
 	}
-	
 	return(x1)
 }
 
@@ -315,12 +264,13 @@ HiC.zeroDiag <- function(x, width){
 	return(x1)
 }
 
-#Extracts from a binned Hi-C matrix just a single chromosome or arm (intxs with self only)
+# Extracts from a binned Hi-C matrix just a single chromosome or arm (intxs with self only)
 grab.chr <- function(x, chr){
 	hits <- grep(chr,rownames(x))
 	return(x[hits,hits])
 }
 
+# Extracts single chromosome from a "linear" dataset, i.e. a one column dataframe like DNase data. Requires row name handling because of the stupid one-column issue (subsetting one column dataframe turns it into a vector with no names).
 grab.chr.linear <- function(x, chr){
 	hits <- grep(chr,rownames(x))
 	x1 <- as.data.frame(x[hits,])
@@ -343,6 +293,7 @@ HiC.matrix.extractMiddle <- function(x, width){
 	return(as.matrix(x1))
 }
 
+# This is for taking a one-column dataframe, e.g. DNase data, and grabbing the rows to match a Hi-C matrix from which the middles were extracted using HiC.matrix.extractMiddle 
 HiC.vector.matchMiddles <- function(x,width){
 	x.range <- (width + 1):(nrow(x) - width)
 	return(as.data.frame(x[x.range,],row.names = row.names(x)[x.range]))
@@ -390,7 +341,6 @@ diagonal.dope <- function(x, size, factor){
 				x1[i + j, i + k] <- factor * x[i + j, i + k]
 			}
 		}
-		
 	}
 	return(x1)
 }
@@ -420,51 +370,6 @@ HiC.localPlot.from.folder <- function(folder, outfolder, LOG=FALSE,HISTEQ=FALSE)
 		abline(h=seq(0,0.9,0.1),lty=2,lwd=1.2, col="white")
 		points(0.535,0.46,pch=19,col="green",cex=3)
 		dev.off()
-	}
-}
-
-# searches a DNA string for supplied dinucleotide (or its reverse complement) and converts into a digital string,
-# 1 where the dinuc is present and 0 where it isn't. For downstream frequency analysis.
-dinucleotide.digitalString <- function(seq, dinuc){
-	len <- nchar(seq)
-	seq <- toupper(seq)
-	dinuc <- toupper(dinuc)
-	#sdinuc.rc <- rev.comp(dinuc) #comment out for no RC
-	matches.f <- gregexpr(dinuc,seq)
-	#matches.r <- gregexpr(dinuc.rc,seq) #comment out for no RC
-	hits <- rep(0,len - 1)
-	if(attributes(matches.f[[1]])$match.length[1] != -1){
-		hits[as.numeric(matches.f[[1]])] <- 1
-	}
-	#if(attributes(matches.r[[1]])$match.length[1] != -1){ #comment out for no RC
-	#	hits[as.numeric(matches.r[[1]])] <- 1			   #comment out for no RC
-	#}                                                     #comment out for no RC
-	return(hits)
-}
-
-# Takes a digital vector of dinucleotide positions, plots either autocorrelation or fourier transform.
-dinucleotide.plot.acf <- function(seq, dinuc, funct='ACF'){
-	if(funct == 'ACF'){
-		ac <- acf(dinucleotide.digitalString(seq, dinuc),plot=FALSE)
-		plot(ac[2:length(ac[[1]])], main=dinuc)
-	}
-	if(funct == 'FFT'){
-		fft <- fft(dinucleotide.digitalString(seq, dinuc))
-		plot.frequency.spectrum(fft, dinuc,c(0,2.5 * max(Mod(fft)[2:50])),c(0,30))
-	}
-}
-
-# Plots the autocorrelation function for all dinucleotides in the supplied sequence. Takes as input a file of
-# just sequences, no carrots
-dinucleotide.plotall.acf <- function(file, funct='ACF'){
-	seq <- seq.asSingleString.fromFile(file)
-	par(mfcol=c(4,4))
-	nts <- c('G','A','T','C')
-	for (nt1 in nts){
-		for (nt2 in nts){
-			dinuc <- paste(nt1, nt2, sep="")
-			dinucleotide.plot.acf(seq, dinuc, funct)			
-		}
 	}
 }
 
@@ -693,6 +598,7 @@ decay.figure.make <- function(nc14.filename, nc12.filename, width, bin.size,  ou
 	dev.off()
 }
 
+# For making overall decay plots. It's important not to have the ends of chromosomes in the decay data, so this uses the extract middle routine which cuts off the ends that don't have sufficient columns to left or right to match width, so a width of 40 will take only the middle of the chromosomes with the 40 bins on the ends left off.
 HiC.matrix.extractMiddles.allchr <- function(x, width){
 	x1 <- rbind(
 	HiC.matrix.extractMiddle(grab.chr(x,'X'),width), 
@@ -731,7 +637,7 @@ HiC.plot.decay.addMeans <- function(x, bin.size, color){
 	points(x.vals, means, col=color, type="l", lty=1,lwd=2.5)
 }
 
-
+# Shortcut to get my "cool region" at the 5' end of 3R that I'm using as a showcase.
 cool.region.get <- function(filename){
 	x <- read.matrix(filename)
 	x <- grab.chr(x, '3R')
@@ -741,7 +647,7 @@ cool.region.get <- function(filename){
 	x <- histogram.equalize(x)
 	return(x)
 }
-
+# Shortcut to make a heatmap of the cool region. Compression of 0.2 generally looks good.
 cool.region.make.heatmap <- function(filename, outfile, compress=0.2){
 	x <- cool.region.get(filename)
 	x <- HiC.matrix.compress(x, 1, compress)
@@ -750,7 +656,8 @@ cool.region.make.heatmap <- function(filename, outfile, compress=0.2){
 	dev.off()
 }
 
-epigenomic.match.plot <- function(hic, epifile, outfile, exponent){
+# Makes a plot of an "epigenomic" dataset (e.g., ChIP or DNase) that matches a region of Hi-C data. Hi-C matri supplied in hic and epigenomic file in epifile must have row names in the format of "chr_bin". The epigenomic file is normalized (subtract minimum, divide by max) and can optionally be expanded or contracted for visual purposes by raising to exponent. This probably shouldn't be used but some of the tracks are more "even" than others and it makes viewing them together difficult. As long as this change is noted, I think it's ok. Just changes the visuals, and for this purposes we're just trying to show where a signal is high or low so I think it's ok.
+epigenomic.match.plot <- function(hic, epifile, outfile, exponent=1){
 	epi <- read.table(epifile, row.names=1)
 	epi <- epi[row.names(hic),1]
 	#epi <- epi / mean(epi)
@@ -764,6 +671,7 @@ epigenomic.match.plot <- function(hic, epifile, outfile, exponent){
 	dev.off()
 }
 
+# Hard-codey routine to make a distance decay plot for a Hi-C matrix with the bins sorted by DNase (or other epigenomic) data. Currently written as plotting lower, middle and upper thirds separately but could easily be tweaked.
 decay.plot.sort.dnase <- function(hic, epifile, bin.size, width, outfile){
 	hic <- HiC.matrix.extractMiddles.allchr(hic, width)
 	epi <- read.table(epifile, row.names=1)
@@ -792,7 +700,7 @@ decay.plot.sort.dnase <- function(hic, epifile, bin.size, width, outfile){
 	dev.off()
 }
 
-# Dump the OE matrix from juicebox. Make sure you're in upper left so it starts with 0. Convert to matrix with python script. Needs to be 25 kb to work for same same. 
+# Makes shading for "compartments" from Hi-C data. Takes as input a file of O/E matrix dumped from juicebox and converted to a proper matrix in python. Shading can be matched to matrix heatmap in Illustrator. Instructions: 1) Dump the OE matrix from juicebox, making sure you're in upper left so it starts with 0. Convert to matrix with python script. Needs to be 25 kb to work for same same. 
 compartment.shading <- function(OE.matrix.file, outfile){
 	x <- read.matrix(OE.matrix.file)
 	x[x > 5] <- 5 #gets rid of weird outliers
@@ -802,10 +710,8 @@ compartment.shading <- function(OE.matrix.file, outfile){
 	pdf(outfile,25,6)
 	plot(ids,type="n", bty="n",xaxt="n",yaxt="n",xlab="",ylab="")
 	
-	#in.zone = FALSE
 	curr.start <- 0
 	curr.id <- 0
-	#return(colours)
 	for (i in 1:length(ids)){
 		id <- ids[i]
 		if (id != curr.id){
@@ -841,28 +747,4 @@ rev.comp <- function(x){
 	x <- chartr('GATC','CTAG', x)
 	x <- sapply(lapply(strsplit(x, NULL), rev), paste, collapse="")
 	return(x)
-}
-
-# Plots the frequency spectrum of a fourier transform
-plot.frequency.spectrum <- function(X.k, title, ylimits = c(0,range(Mod(X.k))[2]),xlimits=c(0,length(X.k))) {
-  plot.data  <- cbind(0:(length(X.k)-1), Mod(X.k))
-
-  # TODO: why this scaling is necessary?
-  plot.data[2:length(X.k),2] <- 2*plot.data[2:length(X.k),2] 
-  
-  plot(plot.data, t="h", lwd=2, main=title, 
-       xlab="Frequency (Hz)", ylab="Strength", 
-       xlim=xlimits, ylim=ylimits)
-}
-
-# Takes a fasta file (or any sequence file) and puts all the sequences together as a single string for searching, etc.
-seq.asSingleString.fromFile <- function(file){
-	seq <- read.table(file)
-	seq <- seq[grep('>',seq[,1], invert=TRUE),] #matches all rows without '>'
-	s <- ''
-	for (i in 1:length(seq)){
-		s <- paste(s, seq[i],sep='')
-	}
-	seq <- s
-
 }
