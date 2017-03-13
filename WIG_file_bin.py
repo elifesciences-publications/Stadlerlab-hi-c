@@ -1,5 +1,9 @@
 """
+Takes a WIG file for some genomic feature, sums up the signal in user-defined bins, prints in format:
+chrX_3	14.839
 
+The reason for hte script is to match genomic (epigenetic) features to Hi-C data, as I use that style of
+bins and names (chrX_pos) for Hi-C matrixes.
 """
 
 from optparse import OptionParser

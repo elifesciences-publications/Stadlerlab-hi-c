@@ -791,6 +791,36 @@ decay.plot.sort.dnase <- function(hic, epifile, bin.size, width, outfile){
 	HiC.plot.decay.addMeans(bottom, bin.size, rgb(1,0.4,0,0.7))
 	dev.off()
 }
+
+# Dump the OE matrix from juicebox. Make sure you're in upper left so it starts with 0. Convert to matrix with python script. Needs to be 25 kb to work for same same. 
+compartment.shading <- function(OE.matrix.file, outfile){
+	x <- read.matrix(OE.matrix.file)
+	x[x > 5] <- 5 #gets rid of weird outliers
+	km <- kmeans(x, 2)
+	ids <- km$cluster[55:390]
+	ids <- c(ids, 0.5) #just to make the last one print...really dumb I know
+	pdf(outfile,25,6)
+	plot(ids,type="n", bty="n",xaxt="n",yaxt="n",xlab="",ylab="")
+	
+	#in.zone = FALSE
+	curr.start <- 0
+	curr.id <- 0
+	#return(colours)
+	for (i in 1:length(ids)){
+		id <- ids[i]
+		if (id != curr.id){
+			if(curr.id != 0){
+				if (curr.id == 1){ colour = "gray"}
+				if (curr.id == 2){ colour = "light gray"}
+				rect(curr.start- 0.5, 0, i-0.5, 2, col=colour, border = NA)
+			}
+			curr.id <- id
+			curr.start <- i
+			
+		}
+	}
+	dev.off()
+}
 ########################################################################
 # HELPER FUNCTIONS
 ########################################################################

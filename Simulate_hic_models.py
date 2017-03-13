@@ -189,14 +189,19 @@ def get_visible_prob_standardmodel(bin, dnase_values, dnase_norm_factor, z):
 	return(prob)
 
 # Prints the count matrix
-def print_matrix(count_matrix, max_bin, outfilename):
+def print_matrix(count_matrix, max_bin, outfilename, chr):
 	outfile = open(outfilename, 'w')
+
 	for i in range(0, max_bin):
-		
+		if (i != 0):
+			outfile.write('\t')
+		outfile.write(chr + '_' + str(i))
+	outfile.write('\n')
 	for i in range (0, max_bin):
+		outfile.write(chr + '_' + str(i))
 		for j in range (0, max_bin):
-			if (j != 0):
-				outfile.write('\t')
+		#	if (j != 0):
+			outfile.write('\t')
 			if (j in count_matrix[i]):
 				outfile.write(str(count_matrix[i][j]))
 			else:
@@ -208,9 +213,12 @@ def print_matrix(count_matrix, max_bin, outfilename):
 options = parse_options()
 a = int(options.a)
 x = float(options.x)
+chromosome = options.chromosome
+if (not re.match('chr', chromosome)):
+	chromosome = 'chr' + chromosome
 bin_size = int(options.bin_size)
 distance_array = read_distances(options.distance_file)
-(dnase_values, max_bin) = read_dnase(options.dnase_file, options.chromosome, bin_size) 
+(dnase_values, max_bin) = read_dnase(options.dnase_file, chromosome, bin_size) 
 dnase_norm_factor = percentile(list(dnase_values.values()), 95)
 count_total = 0
 iterations = int(options.iterations)
@@ -219,7 +227,7 @@ standard_model = options.standard_model
 z = float(options.z)
 
 for i in range(0, iterations):
-	if (i % 1000000 == 0):
+	if (i % 10000000 == 0):
 		print(i)
 	bin1 = randint(0, max_bin)
 	bin2 = select_bin_from_dist(bin1, distance_array, max_bin)
@@ -229,7 +237,7 @@ for i in range(0, iterations):
 		else:	
 			links_formed = generate_linkages(bin1, bin2, dnase_values, dnase_norm_factor, count_matrix, a, x)
 		
-print_matrix(count_matrix, max_bin, options.outfile)
+print_matrix(count_matrix, max_bin, options.outfile, chromosome)
 
 
 
