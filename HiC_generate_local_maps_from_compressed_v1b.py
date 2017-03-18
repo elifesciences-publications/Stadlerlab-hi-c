@@ -38,7 +38,7 @@ def MakeBins():
 		num_bins = int(sizes[i] / bin_size)
 		chr = chromosomes[i]
 		bin_counts[chr] = {}
-		for j in range(0, num_bins):
+		for j in range(0, num_bins + 1):
 			bin_counts[chr][j] = {}
 	return bin_counts
 

@@ -114,10 +114,11 @@ HiC.matrix.process.standard <- function(x,top,bottom){
 }
 
 # Processes and creates heatmap from a Hi-C binned file. Uses proessing routine above.
-HiC.heatmap.plotfromfile <- function(filename, top=1, bottom=0.50){
+HiC.heatmap.plotfromfile <- function(filename, top=1, bottom=0.50, outfile){
 	x <- HiC.matrix.processfromfile(filename,top,bottom)
 	#jpeg(paste(gsub('.txt','',filename),'_bot', bottom,'.jpeg',sep=''),4000,4000)
-	jpeg(paste(gsub('.txt','',filename),'.jpeg',sep=''),4000,4000)
+	#jpeg(paste(gsub('.txt','',filename),'.jpeg',sep=''),4000,4000)
+	jpeg(outfile ,4000,4000)
 	heatmap.natural(x)
 	dev.off()
 }
@@ -346,7 +347,7 @@ diagonal.dope <- function(x, size, factor){
 }
 
 # Makes heatmap plots for all .txt files in a supplied folder. Designed for "local" maps. Data can be logged or histogram equalized depending on preference.
-HiC.localPlot.from.folder <- function(folder, outfolder, LOG=FALSE,HISTEQ=FALSE){
+HiC.localPlot.from.folder <- function(folder, outfolder, size, bottom.compress=0, LOG=FALSE,HISTEQ=FALSE){
 	files <- list.files(folder)
 	for (file in files){
 		
@@ -354,6 +355,10 @@ HiC.localPlot.from.folder <- function(folder, outfolder, LOG=FALSE,HISTEQ=FALSE)
 		outfile <- paste(outfolder, '/', file.stem, sep='')
 		file.path <- paste(folder, file, sep='/')
 		x <- read.matrix(file.path)
+		center <- round(nrow(x) / 2, 0)
+		range <- (center - size):(center + size)
+		x <- x[range, range]
+		x <- HiC.matrix.compress(x, 1, bottom.compress)
 		if(LOG){
 			x <- HiC.matrix.scale.log(x)
 			outfile <- paste(outfile, '_log', sep='')
@@ -488,7 +493,7 @@ chip.heatmaps.folder.all <- function(folder, width){
 }
 
 # Hard-codey script that takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row), grabs the ones corresponding to the list in genes. Can actually put anything there. Script processes each individual heatmap by compressing top 10%, making all negative values 0, and scaling by normalizing to sum. Combines these individual matrices into a larger matrix, each experiment separated by 50 columns of 0's. Then sorts on each column independently, prints a heatmap for sorting on each column. Pretty slow because these processes are slow. Just added feature that makes a separate file with the sorted  directionality Hi-C data, printed in red
-chip.heatmaps.insulators.fromfile <- function(folder, width){
+chip.heatmaps.insulators.fromfile <- function(folder, width=80){
 	genes <- c('BEAF-32','CP190','CTCF','GAF','mod(mdg4)','Su(Hw)','DNase_S5_rep1')
 	#genes <- c('BEAF-32','DNase_S5_rep1')
 	profiles <- list()
@@ -539,7 +544,7 @@ chip.heatmaps.insulators.fromfile <- function(folder, width){
 		jpeg(paste(folder,'/directionality_sortedby_', gene, ".jpeg", sep=''),round(4000 / length(profiles),0),4000,)
 		chip.heatmap(directional[ordering,],'',"red")
 		dev.off()
-		#return()
+		return()
 	}
 }
 
@@ -637,7 +642,7 @@ HiC.plot.decay.addMeans <- function(x, bin.size, color){
 	points(x.vals, means, col=color, type="l", lty=1,lwd=2.5)
 }
 
-# Shortcut to get my "cool region" at the 5' end of 3R that I'm using as a showcase.
+# Shortcut to get my "cool region" at the 5' end of 3R that I'm using as a showcase. Input file is a binned matrix file.
 cool.region.get <- function(filename){
 	x <- read.matrix(filename)
 	x <- grab.chr(x, '3R')
@@ -726,6 +731,30 @@ compartment.shading <- function(OE.matrix.file, outfile){
 		}
 	}
 	dev.off()
+}
+
+HiC.heatmap.difference <- function(filename1, filename2, name1, name2){
+	process <- function(filename){
+		x <- read.matrix(filename)
+		x <- grab.chr(x, '3R')
+		x <- HiC.matrix.vanilla.normalize(x)
+		x <- HiC.matrix.scale.log(x)
+		x <- x[55:390,55:390]
+		return(x)
+	}
+	plot.subtraction <- function(y1, y2, y1.name, y2.name){
+		date.string <- gsub('-','',Sys.Date())
+		y3 <- y1 - y2
+		#y3 <- histogram.equalize(y3)
+		jpeg(paste(date.string, '_', y1.name, '_minus_',y2.name,'.jpeg',sep=''),4000,4000)
+		heatmap.natural(y3)
+		dev.off()
+	}
+	x1 <- process(filename1)
+	x2 <- process(filename2)
+	plot.subtraction(x1, x2, name1, name2)	
+	plot.subtraction(x2, x1, name2, name1)	
+	#x.1min2 <- 
 }
 ########################################################################
 # HELPER FUNCTIONS

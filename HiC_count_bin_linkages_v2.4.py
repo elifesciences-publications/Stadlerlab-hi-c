@@ -29,7 +29,7 @@ def parse_options():
 	
 	parser.add_option("-s", "--file_stem",
 						dest="file_stem", default='none',
-					  help="output file stem")
+					  help="output file stem. Adds _binCounts_Xkb.txt")
 
 	(options, args) = parser.parse_args()
 	return options
