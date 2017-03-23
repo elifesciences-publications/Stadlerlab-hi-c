@@ -76,7 +76,7 @@ for i in range(0,num_bins):
 		if j in counts[i]: #seems to be a bug where Juicebox doesn't always dump every bin
 			outfile.write('\t' + counts[i][j]) 
 		else:
-			print(str(i) + '   ' + str(j))
+			#print(str(i) + '   ' + str(j))
 			outfile.write('\t' + '0') #average is about 1.3, if I want to use that
 	outfile.write('\n')
 

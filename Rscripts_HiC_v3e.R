@@ -100,7 +100,7 @@ HiC.matrix.compress <- function(x, top.percentile=1, bottom.percentile=0.60){
 # Wrapper for basic processing of a binned Hi-C file. Reads in, does vanilla norm, log, compression, hist. equalizing.
 HiC.matrix.processfromfile <- function(filename,top,bottom){
 	x <- read.matrix(filename)
-	x <- HiC.matrix.process.standard(x)
+	x <- HiC.matrix.process.standard(x, top, bottom)
 	return(x)
 }
 
@@ -493,7 +493,7 @@ chip.heatmaps.folder.all <- function(folder, width){
 }
 
 # Hard-codey script that takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row), grabs the ones corresponding to the list in genes. Can actually put anything there. Script processes each individual heatmap by compressing top 10%, making all negative values 0, and scaling by normalizing to sum. Combines these individual matrices into a larger matrix, each experiment separated by 50 columns of 0's. Then sorts on each column independently, prints a heatmap for sorting on each column. Pretty slow because these processes are slow. Just added feature that makes a separate file with the sorted  directionality Hi-C data, printed in red
-chip.heatmaps.insulators.fromfile <- function(folder, width=80){
+chip.heatmaps.insulators.fromfile <- function(folder, width=100){
 	genes <- c('BEAF-32','CP190','CTCF','GAF','mod(mdg4)','Su(Hw)','DNase_S5_rep1')
 	#genes <- c('BEAF-32','DNase_S5_rep1')
 	profiles <- list()
@@ -505,6 +505,7 @@ chip.heatmaps.insulators.fromfile <- function(folder, width=80){
 		profiles[[i]] <- x
 		#process these guys a little
 		middle <- round(ncol(x) / 2,0)
+		x <- x[,(middle - width):(middle + width)]
 		x[x < 0] <- 0
 		top.compress <- quantile(x[,middle],0.9)
 		x[x > top.compress] <- top.compress
@@ -520,8 +521,8 @@ chip.heatmaps.insulators.fromfile <- function(folder, width=80){
 	directional <- read.table(directionality.path, row.names=1)
 	middle <- round(ncol(directional) / 2,0)
 	directional <- directional[,(middle - width):(middle + width)]
-	top.compress <- quantile(directional[,middle],0.9)
-	bottom.compress <- quantile(directional[,middle],0.1)
+	top.compress <- quantile(directional[,3],0.9) #row 3 here is arbitrary. Was having a lot of trouble using the middle row because of the way there are sorted.
+	bottom.compress <- quantile(directional[,3],0.5)
 	directional[directional > top.compress] <- top.compress
 	directional[directional < bottom.compress] <- bottom.compress
 	directional <- as.matrix(directional)
@@ -544,7 +545,7 @@ chip.heatmaps.insulators.fromfile <- function(folder, width=80){
 		jpeg(paste(folder,'/directionality_sortedby_', gene, ".jpeg", sep=''),round(4000 / length(profiles),0),4000,)
 		chip.heatmap(directional[ordering,],'',"red")
 		dev.off()
-		return()
+		#return()
 	}
 }
 
@@ -585,7 +586,7 @@ chip.heatmap <- function(x, title, colour="blue"){
 }
 
 # master script for making decay figure for paper
-decay.figure.make <- function(nc14.filename, nc12.filename, width, bin.size,  outfile){
+decay.figure.make <- function(nc14.filename, nc12.filename, width=8, bin.size=25,  outfile){
 	x <- read.matrix(nc14.filename)
 	nc14 <- HiC.matrix.extractMiddles.allchr(x, width) #not sure what width I was using for figures originally...
 	x <- read.matrix(nc12.filename)
@@ -598,8 +599,8 @@ decay.figure.make <- function(nc14.filename, nc12.filename, width, bin.size,  ou
 	HiC.plot.decay.addMeans(nc14, bin.size, "blue")
 	HiC.plot.decay.addMeans(nc12, bin.size, rgb(1,0.4,0,0.7))
 	#4.8 is a good spacing for "o" style plotting, on outside of default balls. 3.2 is good for "l"
-	HiC.plot.decay(nc14, bin.size, "p", FALSE, rgb(0,0,1,0.025), -4.6, 1)
-	HiC.plot.decay(nc12, bin.size, "p", FALSE,rgb(1,0.4,0,0.025), 4.6, 1)
+	HiC.plot.decay(nc14, bin.size, "p", FALSE, rgb(0,0,1,0.025), -3, 1)
+	HiC.plot.decay(nc12, bin.size, "p", FALSE,rgb(1,0.4,0,0.025), 3, 1)
 	dev.off()
 }
 
@@ -661,8 +662,27 @@ cool.region.make.heatmap <- function(filename, outfile, compress=0.2){
 	dev.off()
 }
 
+cool.region.prcomp.plot <- function(OE.matrix.file, outfile, colour="black"){
+	x <- read.matrix(OE.matrix.file)
+	x[x > 5] <- 5 #takes care of weird outliers
+	x <- x[55:390,55:390]
+	x.pc <- prcomp(x)
+	pdf(outfile,25,6)
+	plot(x.pc$x[,1], type="l", bty="n",xaxt="n",yaxt="n",xlab="",ylab="",lwd=6.5, col=colour)
+	dev.off()
+}
+
+cool.region.OE.heatmap <- function(OE.matrix.file, outfile){
+	x <- read.matrix(OE.matrix.file)
+	x[x > 5] <- 5
+	x <- x[55:390, 55:390]
+	jpeg(outfile, 4000,4000)
+	heatmap.natural(x)
+	dev.off()
+}
+
 # Makes a plot of an "epigenomic" dataset (e.g., ChIP or DNase) that matches a region of Hi-C data. Hi-C matri supplied in hic and epigenomic file in epifile must have row names in the format of "chr_bin". The epigenomic file is normalized (subtract minimum, divide by max) and can optionally be expanded or contracted for visual purposes by raising to exponent. This probably shouldn't be used but some of the tracks are more "even" than others and it makes viewing them together difficult. As long as this change is noted, I think it's ok. Just changes the visuals, and for this purposes we're just trying to show where a signal is high or low so I think it's ok.
-epigenomic.match.plot <- function(hic, epifile, outfile, exponent=1){
+epigenomic.match.plot <- function(hic, epifile, outfile, colour, exponent=1){
 	epi <- read.table(epifile, row.names=1)
 	epi <- epi[row.names(hic),1]
 	#epi <- epi / mean(epi)
@@ -671,13 +691,13 @@ epigenomic.match.plot <- function(hic, epifile, outfile, exponent=1){
 	epi <- epi^exponent
 	pdf(outfile,25,6)
 	par(yaxp=c(0,10,10))
-	plot(epi, type="l", bty="n",xaxt="n",yaxt="n",xlab="",ylab="",lwd=10)
-	axis(side=2, col="black", at=c(0,1),labels=c(0,1))
+	plot(epi, type="l", bty="n",xaxt="n",yaxt="n",xlab="",ylab="",lwd=6.5, col=colour)
+	axis(side=2, col="black", at=c(0,1),labels=c('',''))
 	dev.off()
 }
 
 # Hard-codey routine to make a distance decay plot for a Hi-C matrix with the bins sorted by DNase (or other epigenomic) data. Currently written as plotting lower, middle and upper thirds separately but could easily be tweaked.
-decay.plot.sort.dnase <- function(hic, epifile, bin.size, width, outfile){
+decay.plot.sort.dnase <- function(hic, epifile, bin.size=25, width=8, outfile){
 	hic <- HiC.matrix.extractMiddles.allchr(hic, width)
 	epi <- read.table(epifile, row.names=1)
 	namelogical <- rownames(epi) %in% rownames(hic)
@@ -696,11 +716,11 @@ decay.plot.sort.dnase <- function(hic, epifile, bin.size, width, outfile){
 	HiC.plot.decay(upper, bin.size, "n", TRUE, rgb(0,0,1,0.1,0.7), -4, 0.3)
 	
 	#4.8 is a good spacing for "o" style plotting, on outside of default balls. 3.2 is good for "l"
-	HiC.plot.decay(upper, bin.size, "p", FALSE, rgb(0,0,1,0.025), 4.6, 1)
-	HiC.plot.decay(upper, bin.size, "p", FALSE, rgb(0.9,0.9,0,0.025), 0, 1)
-	HiC.plot.decay(bottom, bin.size, "p", FALSE,rgb(1,0.4,0,0.025), -4.6, 1)
+	HiC.plot.decay(upper, bin.size, "p", FALSE, rgb(0,0,1,0.025), 3, 1)
+#	HiC.plot.decay(middle, bin.size, "p", FALSE, rgb(0.9,0.9,0,0.025), 0, 1)
+	HiC.plot.decay(bottom, bin.size, "p", FALSE,rgb(1,0.4,0,0.025), -3, 1)
 	HiC.plot.decay.addMeans(upper, bin.size, "blue")
-	HiC.plot.decay.addMeans(middle, bin.size, rgb(1,1,0,0.7))
+#	HiC.plot.decay.addMeans(middle, bin.size, rgb(1,1,0,0.7))
 	HiC.plot.decay.addMeans(bottom, bin.size, rgb(1,0.4,0,0.7))
 	dev.off()
 }
@@ -733,6 +753,8 @@ compartment.shading <- function(OE.matrix.file, outfile){
 	dev.off()
 }
 
+
+
 HiC.heatmap.difference <- function(filename1, filename2, name1, name2){
 	process <- function(filename){
 		x <- read.matrix(filename)
@@ -755,6 +777,57 @@ HiC.heatmap.difference <- function(filename1, filename2, name1, name2){
 	plot.subtraction(x1, x2, name1, name2)	
 	plot.subtraction(x2, x1, name2, name1)	
 	#x.1min2 <- 
+}
+
+model.prob.heatmap <- function(MODEL='old', width=100){
+	x <- seq(0, 1, 1/width)
+	x1 <- matrix(nrow = width, ncol=width)
+	flip <- width:1
+	for (i in 1:width){
+		for (j in 1:width){
+			if (MODEL == 'old'){
+				x1[flip[i],j] <- x[i] * x[j]
+			}
+			if (MODEL == 'new'){
+				x1[flip[i],j] <- min(x[i], x[j])
+			}
+		}
+	}
+	return(x1)
+}
+
+HiC.matrix.correlation.plot <- function(file1, file2, outfile, sample.size=10000, return=FALSE){
+	x <- unlist(read.table(file1))
+	y <- unlist(read.table(file2))
+	x <- x / sum(x) * 1e8
+	y <- y / sum(y) * 1e8
+	R.corr <- cor(x,y)
+	print(R.corr)
+	sample <- sample.int(length(x), sample.size)
+	pdf(outfile)
+	plot(x[sample], y[sample], log="xy", xlab="", ylab="", pch=19, col=rgb(0,0,0,0.2))
+	legend("topleft", as.character(R.corr))
+	dev.off()
+	if(return){
+		return(list(x, y, sample))
+	}
+	
+}
+
+#
+dnase.hic.correlation.heatmap <- function(hic.file, dnase.file, numbins){
+# load Hi-C, load DNase. Go through hi-c, at each position, add value to the appropriate bin of dnase vs. dnase matrix. also add a count to a second matrix. Divide in the end, heatmap.
+	hic <- read.matrix(hic.file)
+	dnase <- read.matrix(dnase.file)
+	x.sums <- matrix(rep(0, numbins ** 2), nrow = numbins, ncol = numbins)
+	x.counts <- matrix(rep(0, numbins ** 2), nrow = numbins, ncol = numbins)
+	
+	for (i in 1:nrow(hic)){
+		for (){
+			
+		}
+	}
+
 }
 ########################################################################
 # HELPER FUNCTIONS
