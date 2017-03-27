@@ -549,6 +549,26 @@ chip.heatmaps.insulators.fromfile <- function(folder, width=100){
 	}
 }
 
+chip.heatmaps.ab.sort <- function(file.tosort, file.sortby, outfile, width){
+	tosort <- read.table(file.tosort,row.names=1)
+	sortby <- read.table(file.sortby,row.names=1)
+	middle1 <- round(ncol(sortby) / 2,0)
+	row.sums <- apply(sortby[,(middle1 - 40):(middle1 + 40)], MARGIN=1, sum)
+	ordering <- order(row.sums,decreasing=TRUE)
+	
+	middle <- round(ncol(tosort) / 2,0)
+	tosort <- tosort[,(middle - width):(middle + width)]
+	top.compress <- quantile(tosort[,3],0.9) #row 3 here is arbitrary. Was having a lot of trouble using the middle row because of the way there are sorted.
+	bottom.compress <- quantile(tosort[,3],0.5)
+	tosort[tosort > top.compress] <- top.compress
+	tosort[tosort < bottom.compress] <- bottom.compress
+	tosort <- as.matrix(tosort)	
+	jpeg(outfile, 4000, 4000)
+	chip.heatmap(as.matrix(tosort[ordering,]),'',"red")
+	#chip.heatmap(as.matrix(tosort),'',"red")
+	dev.off()
+}
+
 # subfunction that takes a single ChIP individual value matrix, compresses top 10%, makes all negative values 0, sorts by the middle 81 columns.
 chip.heatmaps.process <- function(x, width, order.pos1, order.pos2){
 	middle <- round(ncol(x) / 2,0)
@@ -793,8 +813,30 @@ model.prob.heatmap <- function(MODEL='old', width=100){
 			}
 		}
 	}
-	return(x1)
+	return(as.matrix(x1))
+	#heatmap.natural(x1)
 }
+
+model.prob.heatmap.new <- function(width=100){
+	free.ends <- 1:width
+	x1 <- matrix(nrow = width, ncol=width)
+	flip <- width:1
+	for (i in 1:width){
+		for (j in 1:width){
+			m <- free.ends[i]
+			n <- free.ends[j]
+			prob.ab <- (n * m) / choose(n+m, 2) 
+			n.junctions <- ((n + m) / 2)
+			expected.junctions <- prob.ab * n.junctions
+			#print(paste(i,j,prob.ab,sep=" "))
+			x1[flip[i],j] <- expected.junctions
+		}
+	}
+	#return(x1)
+	heatmap.natural(x1)
+}
+
+# contour plot:  p <- plot_ly(z= ~c1, type="contour") where c1 is a numeric matrix
 
 HiC.matrix.correlation.plot <- function(file1, file2, outfile, sample.size=10000, return=FALSE){
 	x <- unlist(read.table(file1))
@@ -819,15 +861,27 @@ dnase.hic.correlation.heatmap <- function(hic.file, dnase.file, numbins){
 # load Hi-C, load DNase. Go through hi-c, at each position, add value to the appropriate bin of dnase vs. dnase matrix. also add a count to a second matrix. Divide in the end, heatmap.
 	hic <- read.matrix(hic.file)
 	dnase <- read.matrix(dnase.file)
+	#normalize dnase signal
 	x.sums <- matrix(rep(0, numbins ** 2), nrow = numbins, ncol = numbins)
 	x.counts <- matrix(rep(0, numbins ** 2), nrow = numbins, ncol = numbins)
 	
 	for (i in 1:nrow(hic)){
-		for (){
+		for (j in 1:ncol(hic)){
+			name1 <- rownames(hic)[i]
+			name2 <- colnames(hic)[j]
+			dnase1 <- round(dnase[name1] * numbins, 0)
+			dnase2 <- round(dnase[name2] * numbins, 0)
 			
 		}
 	}
 
+}
+
+heatmap.key.make <- function(outfilename){
+	x <- as.matrix(rbind(1:200,1:200))
+	jpeg(outfilename,200,200)
+	heatmap.natural(x)
+	dev.off()
 }
 ########################################################################
 # HELPER FUNCTIONS
