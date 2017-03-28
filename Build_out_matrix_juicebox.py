@@ -73,7 +73,7 @@ outfile.write('\n')
 for i in range(0,num_bins):
 	outfile.write(chr + '_' + str(i))
 	for j in range(0, num_bins):
-		if j in counts[i]: #seems to be a bug where Juicebox doesn't always dump every bin
+		if (i in counts and j in counts[i]): #seems to be a bug where Juicebox doesn't always dump every bin
 			outfile.write('\t' + counts[i][j]) 
 		else:
 			#print(str(i) + '   ' + str(j))

@@ -883,6 +883,23 @@ heatmap.key.make <- function(outfilename){
 	heatmap.natural(x)
 	dev.off()
 }
+
+HiC.matrix.distance.prob <- function(infilename, outfilename){
+	x <- read.matrix(infilename)
+	reads <- rep(0, nrow(x))
+	instances <- rep(0, nrow(x))
+	for (i in 1:nrow(x)){
+		for (j in 1:ncol(x)){
+			dist <- abs(i - j)
+			reads[dist] <- reads[dist] + x[i,j]
+			instances[dist] <- instances[dist] + 1
+		}
+	}
+	#return(list(reads, instances))
+	prob.reads <- reads / sum(reads)
+	write.table(prob.reads, outfilename, quote=FALSE, col.names=FALSE)
+
+}
 ########################################################################
 # HELPER FUNCTIONS
 ########################################################################

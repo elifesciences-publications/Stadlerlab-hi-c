@@ -85,9 +85,10 @@ def read_dnase(file, chr, bin_size):
 	max_bin = 0
 	dnase_file = open(file, 'r')
 	for line in dnase_file:
-		if (not re.match('track', line)):
-			line = line.rstrip()
-			(chr2, posL, posR, value) = line.split()
+		line = line.rstrip()
+		items = line.split()
+		if (len(items) == 4):
+			(chr2, posL, posR, value) = items
 			posL = int(posL)
 			value = float(value)
 			if (chr2 == chr):
