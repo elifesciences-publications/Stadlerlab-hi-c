@@ -549,6 +549,7 @@ chip.heatmaps.insulators.fromfile <- function(folder, width=100){
 	}
 }
 
+# produces a heatmap from one set of chip data based on sorting a second set of data. Both data files are in the form of the first item is the name of hte feature/position and following is a string of tab-delimited numbers representing the signal around the feature. Width is the number of bins on either side to make. Sorts on the sum of the middle 81 columns.
 chip.heatmaps.ab.sort <- function(file.tosort, file.sortby, outfile, width){
 	tosort <- read.table(file.tosort,row.names=1)
 	sortby <- read.table(file.sortby,row.names=1)
@@ -682,6 +683,7 @@ cool.region.make.heatmap <- function(filename, outfile, compress=0.2){
 	dev.off()
 }
 
+# Takes an observed/expected matrix file (presumably dumped from juicebox), does PCA on the matrix, then plots the weights of PC1 in the outfile. 
 cool.region.prcomp.plot <- function(OE.matrix.file, outfile, colour="black"){
 	x <- read.matrix(OE.matrix.file)
 	x[x > 5] <- 5 #takes care of weird outliers
@@ -692,9 +694,10 @@ cool.region.prcomp.plot <- function(OE.matrix.file, outfile, colour="black"){
 	dev.off()
 }
 
+# Takes an observed/expected matrix file of the left end of chr3R (presumably dumped from juicebox), makes a nice heatmap matching the "cool region" of bins 55:390 (25 kb bins). Also flattens the top end, as there are some weird outliers due to some artifact.  
 cool.region.OE.heatmap <- function(OE.matrix.file, outfile){
 	x <- read.matrix(OE.matrix.file)
-	x[x > 5] <- 5
+	x[x > 5] <- 5 #takes care of weird outliers
 	x <- x[55:390, 55:390]
 	jpeg(outfile, 4000,4000)
 	heatmap.natural(x)
@@ -773,9 +776,8 @@ compartment.shading <- function(OE.matrix.file, outfile){
 	dev.off()
 }
 
-
-
-HiC.heatmap.difference <- function(filename1, filename2, name1, name2){
+# Takes two files of Hi-C binned matrices, produces a simple difference map for the "cool region" at left end of 3R. I also set it up to do autonaming for hte output file with the date string at the beginning. Not sure why.
+cool.region.difference.heatmap <- function(filename1, filename2, name1, name2){
 	process <- function(filename){
 		x <- read.matrix(filename)
 		x <- grab.chr(x, '3R')
@@ -796,9 +798,9 @@ HiC.heatmap.difference <- function(filename1, filename2, name1, name2){
 	x2 <- process(filename2)
 	plot.subtraction(x1, x2, name1, name2)	
 	plot.subtraction(x2, x1, name2, name1)	
-	#x.1min2 <- 
 }
 
+# Makes a heatmap for hte different models of Hi-C. Visibility (# free ends) is on x and y, and the value is the expected Hi-C signal for two such fragments. The "old" model just multiplies the probabilities together, the "new" model selects the minimum. This new model is not correct, but it is a useful thing to look at. The correct model can be found in Mike's script using recursion to derive the expected values. For contour plot instructions, see comment below model.prob.heatmap.new()
 model.prob.heatmap <- function(MODEL='old', width=100){
 	x <- seq(0, 1, 1/width)
 	x1 <- matrix(nrow = width, ncol=width)
@@ -816,7 +818,7 @@ model.prob.heatmap <- function(MODEL='old', width=100){
 	return(as.matrix(x1))
 	#heatmap.natural(x1)
 }
-
+ # Doing the same thing as model.prob.heatmap() with yet another incorrect calculation. This one is closer, but uses a formula that essentially does what Mike's script does for sampling without replacement (correct) and calculates the expected joins for sampling with replacement (incorrect). Despite being wrong, it actually gives similar results. Instructions for making a contour plot are in teh comment below the function.
 model.prob.heatmap.new <- function(width=100){
 	free.ends <- 1:width
 	x1 <- matrix(nrow = width, ncol=width)
@@ -828,16 +830,14 @@ model.prob.heatmap.new <- function(width=100){
 			prob.ab <- (n * m) / choose(n+m, 2) 
 			n.junctions <- ((n + m) / 2)
 			expected.junctions <- prob.ab * n.junctions
-			#print(paste(i,j,prob.ab,sep=" "))
 			x1[flip[i],j] <- expected.junctions
 		}
 	}
-	#return(x1)
 	heatmap.natural(x1)
 }
-
 # contour plot:  p <- plot_ly(z= ~c1, type="contour") where c1 is a numeric matrix
 
+# Takes two Hi-C binned matrix files, converts each into a single numeric vector, calculates teh correlation and makes a scatter plot. The plots contain too many points because the matrices are large, so I used sampling to just plot some of the points. The correlation is on the full dataset.
 HiC.matrix.correlation.plot <- function(file1, file2, outfile, sample.size=10000, return=FALSE){
 	x <- unlist(read.table(file1))
 	y <- unlist(read.table(file2))
@@ -853,30 +853,47 @@ HiC.matrix.correlation.plot <- function(file1, file2, outfile, sample.size=10000
 	if(return){
 		return(list(x, y, sample))
 	}
-	
 }
 
-#
-dnase.hic.correlation.heatmap <- function(hic.file, dnase.file, numbins){
+# Incomplete function to try to use real data to match the simulated expected value plots above. Given DNase accessibility of fragments A and B, what is the average number of Hi-C joins?
+#dnase.hic.correlation.heatmap <- function(hic.file, dnase.file, numbins){
 # load Hi-C, load DNase. Go through hi-c, at each position, add value to the appropriate bin of dnase vs. dnase matrix. also add a count to a second matrix. Divide in the end, heatmap.
+dnase.hic.correlation.heatmap <- function(hic.file, dnase.file, numbins){
 	hic <- read.matrix(hic.file)
-	dnase <- read.matrix(dnase.file)
+	print('read hic')
+	dnase <- read.table(dnase.file, row.names=1)
+	percentile95 <- quantile(dnase[,1],0.95)
+	dnase[dnase > percentile95] <- percentile95
+	dnase <- dnase / max(dnase)
+	print('read dnase')
 	#normalize dnase signal
 	x.sums <- matrix(rep(0, numbins ** 2), nrow = numbins, ncol = numbins)
 	x.counts <- matrix(rep(0, numbins ** 2), nrow = numbins, ncol = numbins)
 	
 	for (i in 1:nrow(hic)){
+	#for (i in 1:300){
+		print(i)
 		for (j in 1:ncol(hic)){
 			name1 <- rownames(hic)[i]
 			name2 <- colnames(hic)[j]
-			dnase1 <- round(dnase[name1] * numbins, 0)
-			dnase2 <- round(dnase[name2] * numbins, 0)
-			
+			#print(name1)
+			dnase1 <- round(dnase[name1,1] * numbins, 0)
+			dnase2 <- round(dnase[name2,1] * numbins, 0)
+			if (! is.na(dnase1) & ! is.na(dnase2)){
+				#print(c(dnase1, dnase2))
+				x.sums[dnase1, dnase2] <- hic[i,j]
+				x.counts[dnase1, dnase2] <- x.counts[dnase1, dnase2] + 1
+				if(dnase1 != dnase2){
+					x.sums[dnase2, dnase1] <- hic[i,j]
+					x.counts[dnase2, dnase1] <- x.counts[dnase2, dnase1] + 1
+				}
+			}
 		}
 	}
-
+	return(list(x.sums, x.counts))
 }
 
+# prints a simple key for the heatmap natural color scheme.
 heatmap.key.make <- function(outfilename){
 	x <- as.matrix(rbind(1:200,1:200))
 	jpeg(outfilename,200,200)
@@ -884,6 +901,7 @@ heatmap.key.make <- function(outfilename){
 	dev.off()
 }
 
+# Takes a Hi-C matrix and generates a distance probability table for input into hi-c simulation. Output is the probability of seeing a read featuring two regions separated by n bins. Has two ways to calculate. 1) Add up all counts at every bin distance, divide by total. 2) Account for the fact that different distances have fewer entries, due to the finite length of chromosomes. This is pretty crappy in current form and needs work. 
 HiC.matrix.distance.prob <- function(infilename, outfilename){
 	x <- read.matrix(infilename)
 	reads <- rep(0, nrow(x))
@@ -898,7 +916,20 @@ HiC.matrix.distance.prob <- function(infilename, outfilename){
 	#return(list(reads, instances))
 	prob.reads <- reads / sum(reads)
 	write.table(prob.reads, outfilename, quote=FALSE, col.names=FALSE)
+}
 
+#numbers are for 1300 bp bins
+polytene.plot.heat <- function(filename, outname, topcompress=0.995, bottomcompress=0.75, startbin=565, endbin=645, LOG=TRUE){
+	x <- read.matrix(filename)
+	x <- x[startbin:endbin,startbin:endbin]
+	x[is.na(x)] <- 0
+	x <- HiC.matrix.compress(x,topcompress, bottomcompress)
+	if (LOG){
+		x <- HiC.matrix.scale.log(x)
+	}
+	jpeg(outname, 4000,4000)
+	heatmap.natural(x)
+	dev.off()
 }
 ########################################################################
 # HELPER FUNCTIONS
