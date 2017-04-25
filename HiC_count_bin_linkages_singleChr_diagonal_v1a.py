@@ -1,7 +1,15 @@
 """
  This script takes a paired alignment file and, assigns each end to a bin (some chunk of 
- a chromosome defined by supplied bin size), and then prints out a matrix of bins vs. bins
- for all chromosomes.
+ a chromosome defined by supplied bin size), and prints out the bin-bin counts for only
+ contacts within some width (controlled by width variable, currently set to 500 bins) of
+ the diagonal (distance between the bins). 
+
+ Prints an interesting format. The file starts with a series of lines that start with a #.
+ These are the total bin counts, used to do normalization, if desired, subsequently. After 
+ that, the format is compressed:
+ chromosome    bin1    bin2    counts
+
+
  
  Some programming notes to check for: handling double counting of diagonal. 
  
@@ -19,7 +27,11 @@ def parse_options():
 	parser.add_option("-b", "--bin_size",
 					   dest="bin_size", default=1000000,
 					  help="bin size")
-					  
+	
+	parser.add_option("-w", "--width",
+					   dest="width", default=1000,
+					  help="width in bins from diagonal")
+
 	parser.add_option("-c", "--chromosome",
 						dest="chromosome", default='none',
 					  help="chromosome")
@@ -56,7 +68,7 @@ filenames = options.filenames
 files = filenames.split(',')
 bin_bin_counts =  {}
 max_bin = 1
-width = 500
+width = int(options.width)
 bin_totals = {}
 
 line_count = 0
@@ -120,6 +132,5 @@ for bin1 in range(0, max_bin + 1):
 				outfile.write('0')
 		else:
 			outfile.write('0')
-			#sys.stdout.write( '0')
 		outfile.write('\n')
 outfile.close()
