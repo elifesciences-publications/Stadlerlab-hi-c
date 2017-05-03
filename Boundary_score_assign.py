@@ -1,15 +1,5 @@
 '''
-This is a naive approach to call boundaries in Hi-C data based on directionality--the relative numbers
-contacts with loci to the right vs. left. It takes as input a WIG file with directionality assigned to 
-bins. User supplies bin size (depends on input wig file), width (number of bins to left and right to 
-include in window), and threshold.
 
-The algorithm is to find the average directional bias (log10 of R/L) within the window of supplied width
-to the left and right, with the bin of interest included in teh right-facing window. If both left and 
-right are properly biased over the threshold, the bin is assigned a value of 1, otherwise it gets a 0. 
-Output is a WIG file.
-
-v2b: writes a separate file containing coordinates of boundaries in list form.
 '''
 from optparse import OptionParser
 from math import log
@@ -86,6 +76,9 @@ outfile_stem = re.sub('.WIG', '', options.filename)
 outfile = open(outfile_stem + '_boundarieScore_w' + options.width  + '.WIG','w')
 outfile.write('track type=wiggle_0 name="boundarieScore_' + options.track_name + '" description="boundarieScore_' + options.track_name + '"\n')
 chromosomes = ('2L','X','3L','4','2R','3R')
+scores = []
+score_sum = 0
+bin_total_count = 0
 
 for chr in chromosomes:
 	chr = 'chr' + chr
@@ -98,8 +91,18 @@ for chr in chromosomes:
 		score = 0
 		if (count_zeros(chr, bin1, width, counts, bin_size) <= max_zeros):
 			score = right_sum - left_sum
+		score_sum += abs(score)
+		bin_total_count += 1
+		scores.append(chr + '\t' + str(bin_pos) + '\t' + str(bin_pos + bin_size - 1) + '\t' + str(score))
 
-		outfile.write(chr + '\t' + str(bin_pos) + '\t' + str(bin_pos + bin_size - 1) + '\t' + str(score) + '\n')
+average_score = score_sum / bin_total_count
+
+for line in scores:
+	items = line.split()
+	score = float(items[3])
+	score_norm = score / average_score
+	items[3] = str(score_norm)
+	outfile.write('\t'.join(items) + '\n')
 		
 
 outfile.close()

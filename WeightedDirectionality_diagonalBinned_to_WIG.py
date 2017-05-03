@@ -36,8 +36,6 @@ def parse_options():
 					  help="width about diagonal to skip, in bins", metavar="SKIP")
 	parser.add_option("-a", "--scale_factor", dest="scale_factor", default=1,
 					  help="Factor by which to scale weighting based on read count, w = [read_total]^a", metavar="SCALE")
-	parser.add_option("-s", "--file_stem", dest="file_stem",
-					  help="stem for outfiles", metavar="STEM")
 	parser.add_option("-t", "--total", dest="total", default=False,
 					  help="total mode, prints just the total reads in area defined by w and d, no direction", metavar="TOTAL")
 
@@ -77,7 +75,7 @@ def Score_boundaries(bin_counts, sizes, chromosomes, scale_factor):
 	bin_size = int(options.bin_size)
 	width = int(options.width)
 	diagonal_skip = int(options.diagonal_skip)
-	outfilename = options.file_stem + '_w' + str(width) + 'd' + str(diagonal_skip) + 'a' + str(scale_factor) + '.WIG'
+	outfilename = re.sub('.txt', '', options.filename) + '_weightedDirectionality_w' + str(width) + 'd' + str(diagonal_skip) + 'a' + str(scale_factor) + '.WIG'
 	outfile = open(outfilename,'w')
 	name = 'width' + str(width) + '_skip' + str(diagonal_skip) + '_sf' + str(scale_factor)
 	outfile.write ('track type=wiggle_0 name="' + name + '" description="test"' + '\n')
