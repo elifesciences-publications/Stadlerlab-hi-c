@@ -947,7 +947,30 @@ polytene.plot.heat <- function(filename, outname, topcompress=0.995, bottomcompr
 	dev.off()
 }
 
-
+boundaries.call <- function(x, left.thresh, right.thresh){
+	boundaries.merge <- function(x1, merge.dist=2000){
+		return(x1)
+		merged <- data.frame(chr=character(), Lmost = integer(), Rmost = integer(), Ldir = numeric(), Rdir = numeric(), boundaryScore = numeric())
+		current.line <- x1[1,]
+		
+		for(i in 2:nrow(x1)){
+			if (abs(x1[i,3] - current.line[3]) <= merge.dist){
+				if (x1[i,6] > current.line[,6]){
+					current.line <- x1[i,]
+				}
+			}
+			else{
+				merged <- rbind(merged, current.line)
+				current.line <- x1[i,]
+			}
+		}
+		return(merged)
+	}
+	left.thresh <- -1 * left.thresh
+	called <- x[x[,4] <= left.thresh & x[,5] >= right.thresh,]
+	called <- cbind(called, called[,5] - called[,4])
+	return(boundaries.merge(called))
+}
 
 ########################################################################
 # HELPER FUNCTIONS

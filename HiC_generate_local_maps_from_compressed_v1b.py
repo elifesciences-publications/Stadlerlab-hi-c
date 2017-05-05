@@ -88,6 +88,7 @@ for line in locfile:
 	items = line.split('\t')
 	name = items[0]
 	chr = items[1]
+	chr = re.sub('chr', '', chr)
 	pos = items[2]
 	bin = int(int(pos) / int(options.bin_size))
 	Generate_map(name, chr, bin)
