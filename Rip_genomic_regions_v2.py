@@ -33,7 +33,7 @@ for record in SeqIO.parse(options.fastafile, "fasta"):
 	genome[record.id] = record.seq
 
 listfile = open(options.listfile, 'r')
-outfile = open(options.out_stem + '_seqs_5p' + str(options.five) + '_3p' + str(options.three) + '.txt','w')
+outfile = open(options.out_stem + '_seqs_5p' + str(options.five) + '_3p' + str(options.three) + '.fa','w')
 for line in listfile:
 	line = line.rstrip()
 	if(line[0:5] != 'track'):

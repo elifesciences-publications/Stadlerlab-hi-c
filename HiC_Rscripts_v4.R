@@ -949,15 +949,13 @@ polytene.plot.heat <- function(filename, outname, topcompress=0.995, bottomcompr
 
 boundaries.call <- function(x, left.thresh, right.thresh){
 	boundaries.merge <- function(x1, merge.dist=2000){
-		return(x1)
+		#return(x1)
 		merged <- data.frame(chr=character(), Lmost = integer(), Rmost = integer(), Ldir = numeric(), Rdir = numeric(), boundaryScore = numeric())
 		current.line <- x1[1,]
 		
 		for(i in 2:nrow(x1)){
 			if (abs(x1[i,3] - current.line[3]) <= merge.dist){
-				if (x1[i,6] > current.line[,6]){
-					current.line <- x1[i,]
-				}
+				#if (x1[i,6] > current.line[,6]){current.line <- x1[i,]} #comment this to select left-most boundary, leave for highest scoring boundary
 			}
 			else{
 				merged <- rbind(merged, current.line)
