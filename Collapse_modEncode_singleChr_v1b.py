@@ -1,5 +1,5 @@
 '''
-This takes modEncode WIG files and makes the UCSC viewable. First thing is it appends 'chr' to chromosome names
+This takes modEncode WIG files and makes them UCSC viewable. First thing is it appends 'chr' to chromosome names
 and also throws out all the "track" lines after the first one. This is important so taht all of the data is
 in a single track instead of being useless split by chr.
 '''

@@ -985,7 +985,15 @@ boundaries.call <- function(x, left.thresh, right.thresh){
 }
 
 local.heatmap.plot.series <- function(filename){
+	date.string <- gsub('-','',Sys.Date())
 	
+	x <- read.matrix(filename)
+	for (top in c(1, 0.98, 0.95)){
+		for (bottom in c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7)){
+			outfile <- paste(date.string, ,sep='')
+			
+		}
+	}
 }
 
 ########################################################################
