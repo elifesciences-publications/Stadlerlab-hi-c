@@ -984,8 +984,30 @@ boundaries.call <- function(x, left.thresh, right.thresh){
 	return(boundaries.merge(called))
 }
 
-local.heatmap.plot.series <- function(filename){
-	
+local.heatmap.plot.series <- function(folder){
+	files <- list.files(folder)
+	for (file in files){
+		if(! grepl('location', file)){
+			date.string <- gsub('-','',Sys.Date())
+			#outstem <- gsub('.*/', '', filename, perl = TRUE)
+			#outstem <- gsub('.txt','', outstem)
+			if (substr(folder, nchar(folder), nchar(folder)) != '/'){ folder <- paste(folder, '/', sep='')}
+			outstem <- gsub('.txt','', file)
+			
+			x <- read.matrix(paste(folder, file, sep=''))
+			x[is.na(x)] <- 0
+			for (top in c(1, 0.99, 0.98, 0.97)){
+				for (bottom in c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)){
+					outfile <- paste(date.string, '_', outstem, '_', top, '_', bottom, '.jpg' ,sep='')
+					x1 <- HiC.matrix.compress(x, top, bottom)
+					diag(x1) <- max(x1)
+					jpeg(outfile, 4000,4000)
+					heatmap.natural(x1)
+					dev.off()
+				}
+			}
+		}
+	}
 }
 
 ########################################################################
