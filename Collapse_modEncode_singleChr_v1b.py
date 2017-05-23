@@ -19,6 +19,8 @@ def parse_options():
 options = parse_options()
 
 infile = open(options.wig_file,'r')
+outfilename = re.sub('.wig', '_ucsc.wig', options.wig_file)
+outfile = open(outfilename, 'w')
 
 curr_chr = ''
 curr_span = 0
@@ -29,11 +31,13 @@ for line in infile:
 	line = line.rstrip()
 	if (line[0:5] == 'track'):
 		if(not trackline_printed):
-			print(line)
+			outfile.write(line + '\n')
 			trackline_printed = True
 		pass
 	elif(line[0:4] == 'vari'):
-		print(re.sub('chrom=', 'chrom=chr',line))
+		outfile.write(re.sub('chrom=', 'chrom=chr',line) + '\n')
 	else:
-		print(line)
+		outfile.write(line + '\n')
+
 infile.close()
+outfile.close()
