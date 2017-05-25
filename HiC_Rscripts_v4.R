@@ -13,23 +13,6 @@ Fig.allchr.heat <- function(infilename, outfilename){
 # Main functions
 ########################################################################
 
-#Takes a vector of distances and fits a model for scaling s^-1 (fractal globule) or s^-3/2 (equilibrium globule)
-HiC.distance.fit <- function(distances, n){
-	x <- distances[distances > 5000 & distances < 1e07] #reduce our space to something reasonable, within 1 Mb
-	x.h <- hist(x,breaks=seq(0,1.1e07, 1e04)) #histogram function with 10 kb bins2:(n+1)
-	plot(x.h$breaks[2:(n+1)], x.h$counts[1:n], type="l", lwd=3, lty=1, ylab="Counts", xlab="Distance")
-	data.m <- data.frame(x.h$breaks[2:(n+1)], x.h$counts[1:n], x.h$breaks[2:(n+1)]^-1, x.h$breaks[2:(n+1)]^-1.5) #build a data frame with s^-1 and s^-3/2 as columns
-	colnames(data.m) <- c('X1','X2','X3','X4')
-	mod1 <- lm(X2 ~ X3, data = data.m)
-	points(x.h$breaks[2:(n+1)],mod1$coefficients[[2]] * (x.h$breaks[2:(n+1)])^-1 + mod1$coefficients[[1]],type="l", col=rgb(0,0,1,0.7), lwd=3,lty=2)
-	mod32 <- lm(X2 ~ X4, data = data.m)
-	points(x.h$breaks[2:(n+1)],mod32$coefficients[[2]] * (x.h$breaks[2:(n+1)])^-1.5 + mod32$coefficients[[1]],type="l", col=rgb(1,0.5,0,0.7), lwd=3,lty=2)
-	text.mod1 <- paste0("p(c) ~ s^-1   (R^2 = ", round(summary(mod1)$r.squared,4), ")")
-	text.mod32 <- paste0("p(c) ~ s^-3/2   (R^2 = ", round(summary(mod32)$r.squared,4), ")")
-	legend("topright", c(text.mod1, text.mod32), fill = c(rgb(0,0,1,.7), rgb(1,0.5,0,0.7)))
-	return(list(mod1, mod32))	
-}
-
 # This is my goto. Basic heatmap that I'm using for all Hi-C matrices, implemented using heatmap.2 and a variety of color schemes. 
 heatmap.natural <- function(x){
 	require(gplots)
@@ -393,58 +376,6 @@ HiC.localPlot.from.folder <- function(folder, outfolder, size, bottom.compress=0
 	}
 }
 
-# For binary ChIP matrix, sorts sequentially on columns and makes a heatmap
-chip.binary.sortedheatmap <- function(x, method.choice='euclidean'){
-	x <- as.matrix(x)
-	x <- x[order(x[,1],x[,2],x[,3],x[,4],x[,5],x[,6], decreasing=TRUE),]
-	#plot_ly(z=x, type="heatmap", x = colnames(x))
-	chip.binary.heatmap(x)
-}
-
-# For binary ChIP data, which is a bunch of rows representing boundary elements and columns representing presence/absece (1/0) of a ChIP factor. Makes 6 heatmaps, one sorted on each column. Currently hard-coded for 6 insulator proteins.
-chip.binary.singlysorted <- function(x, stem){
-	blues <- brewer.pal(9, "Blues")
-	ordering <- c(1:6,1:6)
-	for (i in 1:ncol(x)){
-		x1 <- x[,ordering[i:(i + 5)]]
-		x1 <- x1[order(x1[,1], decreasing=TRUE),]
-		jpeg(paste(stem, i,'.jpeg',sep=''),height=3000, width=3000)
-		heatmap.2(x1,Colv=NA,Rowv=NA,trace="none", dendrogram="none",labRow=NA,key=FALSE, cexCol=8, margins=c(50,50), col=blues)
-		dev.off()
-	}
-}
-
-# I think this is deprecated...
-chip.binary.heatmap <- function(x){
-	blues <- brewer.pal(9, "Blues")
-	heatmap.2(x,symm=TRUE,Colv=FALSE,Rowv=FALSE, trace="none",dendrogram="none",labRow=NA,key=FALSE,colsep=0:(ncol(x)+1),sepcolor="black",sepwidth=c(0.005,0.005), col=blues,margins=c(50,50),cexCol=8)
-}
-
-# Takes a binary matrix of factor occupancy, calculates for every pairwise combination of columns (every factor)
-# combination, the probability of finding B bound given A is bound, the probability of finding B bound given
-# A is not bound, and the ratio (enrichment)
-ChIP.conditional.occupancies <- function(x){
-	out <- c(1,1,1,1,1)
-	for (i in 1:ncol(x)){
-		for (j in 1:ncol(x)){
-			if (i != j){
-				compare <- x[,i] == x[,j]
-				p.j.given.i <- signif(nrow(x[x[,i] == 1 & x[,j] == 1,]) / nrow(x[x[,i] == 1,]), 3)
-				p.j.given.not.i <- signif(nrow(x[x[,i] == 0 & x[,j] == 1,]) / nrow(x[x[,i] == 0,]), 3)
-				enrichment <- signif(p.j.given.i / p.j.given.not.i, 3)
-				out <- rbind(out, c(colnames(x)[i], colnames(x)[j], p.j.given.i, p.j.given.not.i, enrichment))
-			}
-		}
-	}
-	return(out)
-}
-
-# Calculates the frequency of each unique combination of factor binding (actually counts occurrences of unique rows of any matrix)
-chip.factor.combofreq <- function(x){
-	library("plyr")
-	counts <- count(x)
-	return(counts[order(counts$freq, decreasing=TRUE),])
-}
 
 # Plots the cumulative profiles for ChIP data around a position. Takes as input a folder that has multiple .txt files that contain two columns: the position and the cumulative count. Makes plots for all files, puts them on a single output file (but comments can be made to return to a separate output per file). Prints as PDF.
 chip.metaprofile.multiple.fromfiles <- function(folder, outfile){
@@ -465,180 +396,9 @@ chip.metaprofile.multiple.fromfiles <- function(folder, outfile){
 	dev.off()
 }
 
-#This appears to be the same as above...no idea why there are separate functions.
-chip.metaprofile.multiple.singlePlot <- function(folder){
-	files <- list.files(folder)
-	pdf(outfile,100,100)
-	rows <- round((length(files[grep('.txt',files)]) / 4),0)
-	par(mfcol=c(rows,4)) #comment for single
-	par(mai=c(1.5,1.5,1.5,1.5)) #comment for single
-	for (file in files){
-		if(grepl('.txt',file)){
-			path <- paste(folder, file,sep='/')
-			x <- read.table(path)
-			gene.name <- gsub('.txt','',file)
-			#outfile <- paste(folder, '/',gene.name,'.pdf',sep='') #uncomment for single
-			#jpeg(outfile, 1000,100)
-			#pdf(outfile) #uncomment for single
-			#plot(x[,1],x[,2],type="l",lwd=2.5, main=gene.name,xlab="Distance from Boundary",ylab="Cumulative Enrichment") #uncomment for single
-			plot(x[,1],x[,2],type="l",lwd=10, main=gene.name,xlab="",ylab="",cex.main=15)
-			abline(v=0, lty=2,col=2)
-			#dev.off()
-			#return()
-		}
-	}
-	dev.off()
-}
 
-# Takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row) and a width. Makes a heatmap for each txt file, printing a JPEG. Width determines number of bins around middle (width=40 gives 81 columns). Resulting plots are sorted becaues they are processed with chip.heatmaps.process()
-chip.heatmaps.folder.all <- function(folder, width){
-	files <- list.files(folder)
-	for (file in files){
-		if(grepl('.txt',file)){
-			path <- paste(folder, file,sep='/')
-			x <- read.table(path)
-			x <- chip.heatmaps.process(x, width,40,40)
-			gene.name <- gsub('.txt','',file)
-			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
-			jpeg(paste(folder,'/',gene.name,'.jpeg',sep=''),4000,4000)
-			chip.heatmap(x, width, gene.name)
-			dev.off()
-		}
-	}
-}
 
-# Hard-codey script that takes a folder full of text files representing the binned ChIP values around a series of positions (one pos per row), grabs the ones corresponding to the list in genes. Can actually put anything there. Script processes each individual heatmap by compressing top 10%, making all negative values 0, and scaling by normalizing to sum. Combines these individual matrices into a larger matrix, each experiment separated by 50 columns of 0's. Then sorts on each column independently, prints a heatmap for sorting on each column. Pretty slow because these processes are slow. Just added feature that makes a separate file with the sorted  directionality Hi-C data, printed in red
-chip.heatmaps.insulators.fromfile <- function(folder, width=100){
-	genes <- c('BEAF-32','CP190','CTCF','GAF','mod(mdg4)','Su(Hw)','DNase_S5_rep1')
-	#genes <- c('BEAF-32','DNase_S5_rep1')
-	profiles <- list()
-	big.profile <- data.frame()
-	for (i in 1:length(genes)){
-		gene <- genes[i]
-		path <- paste(folder, '/',gene,'.txt',sep='')
-		x <- read.table(path,row.names=1)
-		profiles[[i]] <- x
-		#process these guys a little
-		middle <- round(ncol(x) / 2,0)
-		x <- x[,(middle - width):(middle + width)]
-		x[x < 0] <- 0
-		top.compress <- quantile(x[,middle],0.9)
-		x[x > top.compress] <- top.compress
-		x <- (100000 * x) / sum(x) # just a scaling function since different datasets have different scales
-		if(length(big.profile) > 0){
-			big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
-		}
-		else{
-			big.profile <- x
-		}	
-	}
-	directionality.path <- paste(folder, '/','nc14_HiC_directionality','.txt',sep='')
-	directional <- read.table(directionality.path, row.names=1)
-	middle <- round(ncol(directional) / 2,0)
-	directional <- directional[,(middle - width):(middle + width)]
-	top.compress <- quantile(directional[,3],0.9) #row 3 here is arbitrary. Was having a lot of trouble using the middle row because of the way there are sorted.
-	bottom.compress <- quantile(directional[,3],0.5)
-	directional[directional > top.compress] <- top.compress
-	directional[directional < bottom.compress] <- bottom.compress
-	directional <- as.matrix(directional)
-	#x <- x + 0.25
-	#x[x < 0] <- 0
-	#x <- (100000 * x) / sum(x) 
-	#big.profile <- data.frame(big.profile,matrix(rep(0,nrow(x) * 50),ncol=50),x)
-	#return(big.profile)
-	
-	for (i in 1:length(profiles)){
-		middle <- round(ncol(profiles[[i]]) / 2,0)
-		row.sums <- apply(profiles[[i]][,(middle - 40):(middle + 40)], MARGIN=1, sum)
-		ordering <- order(row.sums,decreasing=TRUE)
-		x1 <- as.matrix(big.profile[ordering,])
-		gene <- genes[i]
-		jpeg(paste(folder,'/sortedby_', gene, ".jpeg", sep=''),4000,4000)
-		chip.heatmap(x1, '')
-		dev.off()
-		
-		jpeg(paste(folder,'/directionality_sortedby_', gene, ".jpeg", sep=''),round(4000 / length(profiles),0),4000,)
-		chip.heatmap(directional[ordering,],'',"red")
-		dev.off()
-		#return()
-	}
-}
 
-# produces a heatmap from one set of chip data based on sorting a second set of data. Both data files are in the form of the first item is the name of hte feature/position and following is a string of tab-delimited numbers representing the signal around the feature. Width is the number of bins on either side to make. Sorts on the sum of the middle 81 columns.
-chip.heatmaps.ab.sort <- function(file.tosort, file.sortby, outfile, width){
-	tosort <- read.table(file.tosort,row.names=1)
-	sortby <- read.table(file.sortby,row.names=1)
-	middle1 <- round(ncol(sortby) / 2,0)
-	row.sums <- apply(sortby[,(middle1 - 40):(middle1 + 40)], MARGIN=1, sum)
-	ordering <- order(row.sums,decreasing=TRUE)
-	
-	middle <- round(ncol(tosort) / 2,0)
-	tosort <- tosort[,(middle - width):(middle + width)]
-	top.compress <- quantile(tosort[,3],0.9) #row 3 here is arbitrary. Was having a lot of trouble using the middle row because of the way there are sorted.
-	bottom.compress <- quantile(tosort[,3],0.5)
-	tosort[tosort > top.compress] <- top.compress
-	tosort[tosort < bottom.compress] <- bottom.compress
-	tosort <- as.matrix(tosort)	
-	jpeg(outfile, 4000, 4000)
-	chip.heatmap(as.matrix(tosort[ordering,]),'',"red")
-	#chip.heatmap(as.matrix(tosort),'',"red")
-	dev.off()
-}
-
-# subfunction that takes a single ChIP individual value matrix, compresses top 10%, makes all negative values 0, sorts by the middle 81 columns.
-chip.heatmaps.process <- function(x, width, order.pos1, order.pos2){
-	middle <- round(ncol(x) / 2,0)
-	#print(middle)
-	top.compress <- quantile(x[,middle],0.9)
-	x1 <- x[,(middle - width):(middle + width)]
-	x1 <- as.matrix(x1)
-	
-	row.sums <- apply(x[,(middle - order.pos1):(middle + order.pos2)], MARGIN=1, sum)
-	#row.sums <- apply(x[,(middle - 10):(middle + 10)], MARGIN=1, sum)
-	x1 <- x1[order(row.sums,decreasing=TRUE),]
-	x1[x1 > top.compress] <- top.compress
-	x1[x1 < 0] <- 0
-	return(x1)
-}
-
-# uses heatmap.2 to print out a heatmap for ChIP values. Variety of colors available.
-chip.heatmap <- function(x, title, colour="blue"){
-	require(gplots)
-	require(RColorBrewer)
-
-	yellow.orange.red <- c("white",brewer.pal(9, "YlOrRd"))
-	orange.and.blue <- c(brewer.pal(9, "Oranges")[7:1], brewer.pal(9, "Blues")[1:9])
-	yellow.blue <- c(brewer.pal(9, "YlOrBr")[9:1], brewer.pal(9, "Blues")[1:9])
-	blue.yellow <- yellow.blue[18:1]
-	blues <- brewer.pal(9, "Blues")
-	reds <- brewer.pal(9, "Reds")
-	
-	if (colour[1] == "blue"){ colour <- blues}
-	if (colour[1] == "yellow.orange.red"){ colour <- yellow.orange.red}
-	if (colour[1] == "red"){ colour <- reds}
-	#heatmap.2(x1)
-	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(colour)(100))
-
-}
-
-# master script for making decay figure for paper
-decay.figure.make <- function(nc14.filename, nc12.filename, width=8, bin.size=25,  outfile){
-	x <- read.matrix(nc14.filename)
-	nc14 <- HiC.matrix.extractMiddles.allchr(x, width) #not sure what width I was using for figures originally...
-	x <- read.matrix(nc12.filename)
-	nc12 <- HiC.matrix.extractMiddles.allchr(x, width)
-	
-	nc12 <- HiC.matrix.normbyrowonly(nc12)
-	nc14 <- HiC.matrix.normbyrowonly(nc14)
-	pdf(outfile)
-	HiC.plot.decay(nc14, bin.size, "n", TRUE, rgb(0,0,1,0.1,0.7), -4, 0.3)
-	HiC.plot.decay.addMeans(nc14, bin.size, "blue")
-	HiC.plot.decay.addMeans(nc12, bin.size, rgb(1,0.4,0,0.7))
-	#4.8 is a good spacing for "o" style plotting, on outside of default balls. 3.2 is good for "l"
-	HiC.plot.decay(nc14, bin.size, "p", FALSE, rgb(0,0,1,0.025), -3, 1)
-	HiC.plot.decay(nc12, bin.size, "p", FALSE,rgb(1,0.4,0,0.025), 3, 1)
-	dev.off()
-}
 
 # For making overall decay plots. It's important not to have the ends of chromosomes in the decay data, so this uses the extract middle routine which cuts off the ends that don't have sufficient columns to left or right to match width, so a width of 40 will take only the middle of the chromosomes with the 40 bins on the ends left off.
 HiC.matrix.extractMiddles.allchr <- function(x, width){
@@ -652,72 +412,6 @@ HiC.matrix.extractMiddles.allchr <- function(x, width){
 	return(x1)
 }
 
-# Takes a matrix of values (design is for them to be centered on diagonal values) and plots each row independently. Recommended colors rgb(0,0,1,0.025) and rgb(1,0.6,0,0.025). Bin size is in kilobases.
-HiC.plot.decay <- function(x, bin.size=100, plot.type="n",new=TRUE,color, offset=0, expansion=0.75){
-	max <- max(x)
-	width <- ncol(x)
-	height <- nrow(x)
-	x.vals <- seq((-1 * bin.size) *((width - 1) / 2), bin.size *((width - 1) / 2), bin.size)
-	#print(x.vals)
-	x.vals <- x.vals + offset
-	#return(x.vals)
-	if(new){
-		plot(x.vals,x.vals, type="n", ylim = c(0,0.7), xlab = "", ylab = "",cex.axis=2)
-	}
-	for (i in 1:height){
-		points(x.vals, x[i,], type = plot.type,pch=16,cex=expansion, lwd=1,col=color)
-	}
-	
-}
-
-# Overlay means on the decay plots, as a line currently
-HiC.plot.decay.addMeans <- function(x, bin.size, color){
-	width <- ncol(x)
-	height <- nrow(x)
-	x.vals <- seq((-1 * bin.size) *((width - 1) / 2), bin.size *((width - 1) / 2), bin.size)
-	means <- apply(x, MARGIN=2, mean)
-	points(x.vals, means, col=color, type="l", lty=1,lwd=2.5)
-}
-
-# Shortcut to get my "cool region" at the 5' end of 3R that I'm using as a showcase. Input file is a binned matrix file.
-cool.region.get <- function(filename){
-	x <- read.matrix(filename)
-	x <- grab.chr(x, '3R')
-	x <- HiC.matrix.vanilla.normalize(x)
-	x <- HiC.matrix.scale.log(x)
-	x <- x[55:390,55:390]
-	x <- histogram.equalize(x)
-	return(x)
-}
-# Shortcut to make a heatmap of the cool region. Compression of 0.2 generally looks good.
-cool.region.make.heatmap <- function(filename, outfile, compress=0.2){
-	x <- cool.region.get(filename)
-	x <- HiC.matrix.compress(x, 1, compress)
-	jpeg(outfile, 4000, 4000)
-	heatmap.natural(x)
-	dev.off()
-}
-
-# Takes an observed/expected matrix file (presumably dumped from juicebox), does PCA on the matrix, then plots the weights of PC1 in the outfile. 
-cool.region.prcomp.plot <- function(OE.matrix.file, outfile, colour="black"){
-	x <- read.matrix(OE.matrix.file)
-	x[x > 5] <- 5 #takes care of weird outliers
-	x <- x[55:390,55:390]
-	x.pc <- prcomp(x)
-	pdf(outfile,25,6)
-	plot(x.pc$x[,1], type="l", bty="n",xaxt="n",yaxt="n",xlab="",ylab="",lwd=6.5, col=colour)
-	dev.off()
-}
-
-# Takes an observed/expected matrix file of the left end of chr3R (presumably dumped from juicebox), makes a nice heatmap matching the "cool region" of bins 55:390 (25 kb bins). Also flattens the top end, as there are some weird outliers due to some artifact.  
-cool.region.OE.heatmap <- function(OE.matrix.file, outfile){
-	x <- read.matrix(OE.matrix.file)
-	x[x > 5] <- 5 #takes care of weird outliers
-	x <- x[55:390, 55:390]
-	jpeg(outfile, 4000,4000)
-	heatmap.natural(x)
-	dev.off()
-}
 
 # Makes a plot of an "epigenomic" dataset (e.g., ChIP or DNase) that matches a region of Hi-C data. Hi-C matri supplied in hic and epigenomic file in epifile must have row names in the format of "chr_bin". The epigenomic file is normalized (subtract minimum, divide by max) and can optionally be expanded or contracted for visual purposes by raising to exponent. This probably shouldn't be used but some of the tracks are more "even" than others and it makes viewing them together difficult. As long as this change is noted, I think it's ok. Just changes the visuals, and for this purposes we're just trying to show where a signal is high or low so I think it's ok.
 epigenomic.match.plot <- function(hic, epifile, outfile, colour, exponent=1){
@@ -734,34 +428,6 @@ epigenomic.match.plot <- function(hic, epifile, outfile, colour, exponent=1){
 	dev.off()
 }
 
-# Hard-codey routine to make a distance decay plot for a Hi-C matrix with the bins sorted by DNase (or other epigenomic) data. Currently written as plotting lower, middle and upper thirds separately but could easily be tweaked.
-decay.plot.sort.dnase <- function(hic, epifile, bin.size=25, width=8, outfile){
-	hic <- HiC.matrix.extractMiddles.allchr(hic, width)
-	epi <- read.table(epifile, row.names=1)
-	namelogical <- rownames(epi) %in% rownames(hic)
-	epi <- data.frame(epi[namelogical,], row.names=rownames(epi)[namelogical])
-	percentile66 <- quantile(epi[,1], 0.6666)
-	percentile33 <- quantile(epi[,1], 0.33333)
-	upper.third <- rownames(epi)[epi[,1] > percentile66]
-	middle.third <- rownames(epi)[epi[,1] < percentile66 & epi[,1] > percentile33]
-	bottom.third <- rownames(epi)[epi[,1] < percentile33]
-	#return(hic[upper.third,]) # issue is that some of the middle third names aren't in  hic
-	
-	upper <- HiC.matrix.normbyrowonly(hic[upper.third,])
-	middle <- HiC.matrix.normbyrowonly(hic[middle.third,])
-	bottom <- HiC.matrix.normbyrowonly(hic[bottom.third,])
-	pdf(outfile)
-	HiC.plot.decay(upper, bin.size, "n", TRUE, rgb(0,0,1,0.1,0.7), -4, 0.3)
-	
-	#4.8 is a good spacing for "o" style plotting, on outside of default balls. 3.2 is good for "l"
-	HiC.plot.decay(upper, bin.size, "p", FALSE, rgb(0,0,1,0.025), 3, 1)
-#	HiC.plot.decay(middle, bin.size, "p", FALSE, rgb(0.9,0.9,0,0.025), 0, 1)
-	HiC.plot.decay(bottom, bin.size, "p", FALSE,rgb(1,0.4,0,0.025), -3, 1)
-	HiC.plot.decay.addMeans(upper, bin.size, "blue")
-#	HiC.plot.decay.addMeans(middle, bin.size, rgb(1,1,0,0.7))
-	HiC.plot.decay.addMeans(bottom, bin.size, rgb(1,0.4,0,0.7))
-	dev.off()
-}
 
 # Makes shading for "compartments" from Hi-C data. Takes as input a file of O/E matrix dumped from juicebox and converted to a proper matrix in python. Shading can be matched to matrix heatmap in Illustrator. Instructions: 1) Dump the OE matrix from juicebox, making sure you're in upper left so it starts with 0. Convert to matrix with python script. Needs to be 25 kb to work for same same. 
 compartment.shading <- function(OE.matrix.file, outfile){
@@ -815,42 +481,6 @@ cool.region.difference.heatmap <- function(filename1, filename2, name1, name2){
 	plot.subtraction(x2, x1, name2, name1)	
 }
 
-# Makes a heatmap for hte different models of Hi-C. Visibility (# free ends) is on x and y, and the value is the expected Hi-C signal for two such fragments. The "old" model just multiplies the probabilities together, the "new" model selects the minimum. This new model is not correct, but it is a useful thing to look at. The correct model can be found in Mike's script using recursion to derive the expected values. For contour plot instructions, see comment below model.prob.heatmap.new()
-model.prob.heatmap <- function(MODEL='old', width=100){
-	x <- seq(0, 1, 1/width)
-	x1 <- matrix(nrow = width, ncol=width)
-	flip <- width:1
-	for (i in 1:width){
-		for (j in 1:width){
-			if (MODEL == 'old'){
-				x1[flip[i],j] <- x[i] * x[j]
-			}
-			if (MODEL == 'new'){
-				x1[flip[i],j] <- min(x[i], x[j])
-			}
-		}
-	}
-	return(as.matrix(x1))
-	#heatmap.natural(x1)
-}
- # Doing the same thing as model.prob.heatmap() with yet another incorrect calculation. This one is closer, but uses a formula that essentially does what Mike's script does for sampling without replacement (correct) and calculates the expected joins for sampling with replacement (incorrect). Despite being wrong, it actually gives similar results. Instructions for making a contour plot are in teh comment below the function.
-model.prob.heatmap.new <- function(width=100){
-	free.ends <- 1:width
-	x1 <- matrix(nrow = width, ncol=width)
-	flip <- width:1
-	for (i in 1:width){
-		for (j in 1:width){
-			m <- free.ends[i]
-			n <- free.ends[j]
-			prob.ab <- (n * m) / choose(n+m, 2) 
-			n.junctions <- ((n + m) / 2)
-			expected.junctions <- prob.ab * n.junctions
-			x1[flip[i],j] <- expected.junctions
-		}
-	}
-	heatmap.natural(x1)
-}
-# contour plot:  p <- plot_ly(z= ~c1, type="contour") where c1 is a numeric matrix
 
 # Takes two Hi-C binned matrix files, converts each into a single numeric vector, calculates teh correlation and makes a scatter plot. The plots contain too many points because the matrices are large, so I used sampling to just plot some of the points. The correlation is on the full dataset.
 HiC.matrix.correlation.plot <- function(file1, file2, outfile, sample.size=10000, return=FALSE){
@@ -870,43 +500,6 @@ HiC.matrix.correlation.plot <- function(file1, file2, outfile, sample.size=10000
 	}
 }
 
-# Incomplete function to try to use real data to match the simulated expected value plots above. Given DNase accessibility of fragments A and B, what is the average number of Hi-C joins?
-#dnase.hic.correlation.heatmap <- function(hic.file, dnase.file, numbins){
-# load Hi-C, load DNase. Go through hi-c, at each position, add value to the appropriate bin of dnase vs. dnase matrix. also add a count to a second matrix. Divide in the end, heatmap.
-dnase.hic.correlation.heatmap <- function(hic.file, dnase.file, numbins){
-	hic <- read.matrix(hic.file)
-	print('read hic')
-	dnase <- read.table(dnase.file, row.names=1)
-	percentile95 <- quantile(dnase[,1],0.95)
-	dnase[dnase > percentile95] <- percentile95
-	dnase <- dnase / max(dnase)
-	print('read dnase')
-	#normalize dnase signal
-	x.sums <- matrix(rep(0, numbins ** 2), nrow = numbins, ncol = numbins)
-	x.counts <- matrix(rep(0, numbins ** 2), nrow = numbins, ncol = numbins)
-	
-	for (i in 1:nrow(hic)){
-	#for (i in 1:300){
-		print(i)
-		for (j in 1:ncol(hic)){
-			name1 <- rownames(hic)[i]
-			name2 <- colnames(hic)[j]
-			#print(name1)
-			dnase1 <- round(dnase[name1,1] * numbins, 0)
-			dnase2 <- round(dnase[name2,1] * numbins, 0)
-			if (! is.na(dnase1) & ! is.na(dnase2)){
-				#print(c(dnase1, dnase2))
-				x.sums[dnase1, dnase2] <- hic[i,j]
-				x.counts[dnase1, dnase2] <- x.counts[dnase1, dnase2] + 1
-				if(dnase1 != dnase2){
-					x.sums[dnase2, dnase1] <- hic[i,j]
-					x.counts[dnase2, dnase1] <- x.counts[dnase2, dnase1] + 1
-				}
-			}
-		}
-	}
-	return(list(x.sums, x.counts))
-}
 
 # prints a simple key for the heatmap natural color scheme.
 heatmap.key.make <- function(outfilename){
@@ -916,22 +509,6 @@ heatmap.key.make <- function(outfilename){
 	dev.off()
 }
 
-# Takes a Hi-C matrix and generates a distance probability table for input into hi-c simulation. Output is the probability of seeing a read featuring two regions separated by n bins. Has two ways to calculate. 1) Add up all counts at every bin distance, divide by total. 2) Account for the fact that different distances have fewer entries, due to the finite length of chromosomes. This is pretty crappy in current form and needs work. 
-HiC.matrix.distance.prob <- function(infilename, outfilename){
-	x <- read.matrix(infilename)
-	reads <- rep(0, nrow(x))
-	instances <- rep(0, nrow(x))
-	for (i in 1:nrow(x)){
-		for (j in 1:ncol(x)){
-			dist <- abs(i - j)
-			reads[dist] <- reads[dist] + x[i,j]
-			instances[dist] <- instances[dist] + 1
-		}
-	}
-	#return(list(reads, instances))
-	prob.reads <- reads / sum(reads)
-	write.table(prob.reads, outfilename, quote=FALSE, col.names=FALSE)
-}
 
 #numbers are for 1300 bp bins
 polytene.plot.heat <- function(filename, outname, topcompress=0.995, bottomcompress=0.75, startbin=565, endbin=645, LOG=TRUE){
@@ -1009,6 +586,102 @@ local.heatmap.plot.series <- function(folder){
 		}
 	}
 }
+
+chip.heatmaps.control <- function(folder, outfolder, number){
+	files <- list.files(folder)
+	x <- read.table(paste(folder, files[1], sep="/"), row.names=1)
+	sortby <- rownames(x)[sample(1:nrow(x), number)]
+	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
+}
+
+chip.heatmaps.polycomb <- function(folder, outfolder){
+	files <- list.files(folder)
+	for (file in files){
+		if(grepl('.txt',file)){
+			path <- paste(folder, file,sep='/')
+			x <- read.table(path, row.names=1)
+			left.means <- apply(x[,1:99], MARGIN=1, mean)
+			right.means <- apply(x[,101:200], MARGIN=1, mean)
+			thresh <- quantile(apply(x, MARGIN=1, mean), 0.6)
+			over.under <- rownames(x)[left.means > thresh & right.means < thresh]
+			under.over <- rownames(x)[left.means < thresh & right.means > thresh]
+			over.over <- rownames(x)[left.means > thresh & right.means > thresh]
+			under.under <- rownames(x)[left.means < thresh & right.means < thresh]
+			sortby <- c(over.under, under.over, over.over, under.under)
+			x <- x[sortby, ]
+			x <- as.matrix(x)
+			x <- chip.heatmap.compress(x,0.99,0.7)
+			gene.name <- gsub('.txt','',file)
+			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
+			jpeg(paste(outfolder,'/',gene.name,'.jpeg',sep=''),4000,4000)
+			chip.heatmap(x, 'test', 'red')
+			dev.off()
+		}
+	}
+}
+
+chip.heatmaps.folder.sortbyBoundaryStrength <- function(folder, boundaryfile, outfolder){
+	boundaries <- read.table(boundaryfile)
+	boundaries <- boundaries[order(boundaries[,5], decreasing=TRUE),]
+	sortby <- paste(boundaries[,1], ':', boundaries[,2], '-', boundaries[,3], sep="")
+	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
+}
+
+chip.heatmaps.folder.sortbyDNase <- function(folder, DNase.file, outfolder){
+	dnase <- read.table(DNase.file, row.names=1)
+	window <- 5
+	middle <- round(ncol(dnase) / 2, 0)
+	means <- apply(dnase[,(middle - window):(middle + window)], MARGIN=1, mean)
+	dnase <- dnase[order(means, decreasing=TRUE),]
+	sortby <- rownames(dnase)
+	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
+}
+
+chip.heatmaps.folder.sortbyX <- function(folder, sortby, outfolder){
+	files <- list.files(folder)
+	for (file in files){
+		if(grepl('.txt',file)){
+			path <- paste(folder, file,sep='/')
+			x <- read.table(path, row.names=1)
+			x <- x[sortby, ]
+			x <- as.matrix(x)
+			x <- chip.heatmap.compress(x,0.99,0.7)
+			gene.name <- gsub('.txt','',file)
+			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
+			jpeg(paste(outfolder,'/',gene.name,'.jpeg',sep=''),4000,4000)
+			chip.heatmap(x, 'test', 'blue')
+			dev.off()
+		}
+	}
+}
+
+chip.heatmap.compress <- function(x, top=0.95, bottom=0.05){
+	max.val <- quantile(unlist(x), top, na.rm=TRUE)
+	min.val <- quantile(x, bottom, na.rm=TRUE)
+	x[x > max.val] <- max.val
+	x[x < min.val] <- min.val
+	return(x)
+}
+
+# uses heatmap.2 to print out a heatmap for ChIP values. Variety of colors available.
+chip.heatmap <- function(x, title, colour="blue"){
+	require(gplots)
+	require(RColorBrewer)
+
+	yellow.orange.red <- c("white",brewer.pal(9, "YlOrRd"))
+	orange.and.blue <- c(brewer.pal(9, "Oranges")[7:1], brewer.pal(9, "Blues")[1:9])
+	yellow.blue <- c(brewer.pal(9, "YlOrBr")[9:1], brewer.pal(9, "Blues")[1:9])
+	blue.yellow <- yellow.blue[18:1]
+	blues <- brewer.pal(9, "Blues")
+	reds <- brewer.pal(9, "Reds")
+	
+	if (colour[1] == "blue"){ colour <- blues}
+	if (colour[1] == "yellow.orange.red"){ colour <- yellow.orange.red}
+	if (colour[1] == "red"){ colour <- reds}
+	#heatmap.2(x1)
+	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(colour)(1000))
+}
+
 
 ########################################################################
 # HELPER FUNCTIONS

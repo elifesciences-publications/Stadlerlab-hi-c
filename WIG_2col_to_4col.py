@@ -16,17 +16,18 @@ def parse_options():
 	return options
 
 options = parse_options()
-
 infile = open(options.wig_file,'r')
 outfilename = ''
 #print(options.wig_file)
-if re.search('WIG',options.wig_file):
-	outfilename = re.sub('.WIG','_4col.WIG', options.wig_file)
-elif re.search('wig',options.wig_file):
-	outfilename = re.sub('.wig','_4col.WIG', options.wig_file)
+if re.search('WIG$',options.wig_file):
+	outfilename = re.sub('.WIG$','_4col.WIG', options.wig_file)
+elif re.search('wig$',options.wig_file):
+	outfilename = re.sub('.wig$','_4col.WIG', options.wig_file)
 else:
 	sys.exit('Does not appear to be a WIG file!')
 outfile = open(outfilename, 'w')
+
+#sys.exit()
 
 curr_chr = ''
 curr_span = 0
@@ -47,6 +48,8 @@ for line in infile:
 			curr_chr = 'chr' + curr_chr
 		curr_span = int(span[5:])
 		#print(curr_chr + ' ' + curr_span)
+	elif(line[0] == '#'):
+		pass
 	else:
 		line_values = line.split()
 		if (len(line_values) == 4):

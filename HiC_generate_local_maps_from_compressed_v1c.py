@@ -88,7 +88,8 @@ for line in locfile:
 	pos2 = items[3]
 	bin1 = int(int(pos1) / int(options.bin_size))
 	bin2 = int(int(pos2) / int(options.bin_size))
-	Generate_map(name, chr, bin1, bin2)
+	if ((bin1 + 1) in bin_counts[chr][bin1]): #this is just a test for whether this chromosome was loaded. Allows inclusion of all locations in single file
+		Generate_map(name, chr, bin1, bin2)
 
 locfile.close()
 

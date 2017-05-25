@@ -35,7 +35,10 @@ for line in infile:
 			trackline_printed = True
 		pass
 	elif(line[0:4] == 'vari'):
-		outfile.write(re.sub('chrom=', 'chrom=chr',line) + '\n')
+		if (not re.search('chrom=chr', line)):
+			print ('booya')
+			line = re.sub('chrom=', 'chrom=chr',line)
+		outfile.write(line + '\n')
 	else:
 		outfile.write(line + '\n')
 

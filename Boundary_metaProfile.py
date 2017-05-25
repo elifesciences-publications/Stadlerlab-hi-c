@@ -38,8 +38,8 @@ def add_position(line, genome, window, bin_size, counts, individual, outfile):
 		pos1 = items[3]
 		pos2 = items[4]
 	else:
-		(chr, positions) = line.split(':')
-		(pos1, pos2) = positions.split('-')
+		chr, pos1, pos2 = line.split('\t')[0:3]
+		#(pos1, pos2) = positions.split('-')
 	bin_Lmost = int(int(pos1) / bin_size)
 	local_counts = {}
 	local_sum = 0
