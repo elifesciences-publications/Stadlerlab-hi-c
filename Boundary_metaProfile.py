@@ -44,6 +44,8 @@ def add_position(line, genome, window, bin_size, counts, individual, outfile):
 	local_counts = {}
 	local_sum = 0
 
+	if (not re.match('chr', chr)): chr = 'chr' + chr
+
 	if (chr in genome):
 		for i in range(-1 * window, window):
 			bin = bin_Lmost + i
@@ -115,7 +117,8 @@ featurefile.close()
 pos_file = open(options.pos_file, 'r')
 
 for line in pos_file:
-	add_position(line, genome, window, bin_size, counts, individual, outfile)
+	if (line[0] != '#'):
+		add_position(line, genome, window, bin_size, counts, individual, outfile)
 
 pos_file.close()
 

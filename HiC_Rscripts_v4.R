@@ -524,6 +524,7 @@ polytene.plot.heat <- function(filename, outname, topcompress=0.995, bottomcompr
 	dev.off()
 }
 
+# Takes a "boundary score" file which has the position (chr Lmost Rmost) and the average directionality score for a window to the left and right. The file has this for every bin in the genome of a certain size. This code first calls bins as boundaries by requiring the left and right windows to surpass supplied thresholds. This often leaves you with several consecutive bins that are called boundaries. The merge function within this function resolves these in the following way: contiguous called boundaries are merged into single elements, the position is reported as the midpoint and the boundary score is reported as the maximum score for any bin within the contiguous block. I played around with several options (leftmost, selecting the max scoring bin, etc.) and decided this was the most reliable.
 boundaries.call <- function(x, left.thresh, right.thresh){
 	boundaries.merge <- function(x1, merge.dist=2000){
 		#return(x1)
@@ -545,9 +546,7 @@ boundaries.call <- function(x, left.thresh, right.thresh){
 				midpoint <- round((current.start + current.end) / 2, 0)
 				newline <- cbind(x1[midpoint,1:3], 'boundary', current.max.score)
 				
-				#print(newline)
 				merged <- rbind(merged, newline)
-				#print(merged)
 				current.start <- i
 				current.end <- i
 				current.max.score <- x1[i,6]
@@ -561,6 +560,7 @@ boundaries.call <- function(x, left.thresh, right.thresh){
 	return(boundaries.merge(called))
 }
 
+# Makes heatmaps for all the local heatmap files in a folder. Creates multiple plots with a series of value compressions.
 local.heatmap.plot.series <- function(folder){
 	files <- list.files(folder)
 	for (file in files){
@@ -587,6 +587,7 @@ local.heatmap.plot.series <- function(folder){
 	}
 }
 
+# Makes heatmap for ChIP-like signals around control positions. The trick here is it randomly samples a supplied number of features since many of the control sets have way too many members.
 chip.heatmaps.control <- function(folder, outfolder, number){
 	files <- list.files(folder)
 	x <- read.table(paste(folder, files[1], sep="/"), row.names=1)
@@ -594,6 +595,77 @@ chip.heatmaps.control <- function(folder, outfolder, number){
 	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
 }
 
+# makes heatmaps for all files in the supplied folder, sorted according to boundary score in supplied boundary file.
+chip.heatmaps.folder.sortbyBoundaryStrength <- function(folder, boundaryfile, outfolder){
+	boundaries <- read.table(boundaryfile)
+	boundaries <- boundaries[order(boundaries[,5], decreasing=TRUE),]
+	sortby <- paste(boundaries[,1], ':', boundaries[,2], '-', boundaries[,3], sep="")
+	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
+}
+
+# same as above but sorts by the DNase accessibility score at the middle 11 columns
+chip.heatmaps.folder.sortbyDNase <- function(folder, DNase.file, outfolder){
+	dnase <- read.table(DNase.file, row.names=1)
+	window <- 5
+	middle <- round(ncol(dnase) / 2, 0)
+	means <- apply(dnase[,(middle - window):(middle + window)], MARGIN=1, mean)
+	dnase <- dnase[order(means, decreasing=TRUE),]
+	sortby <- rownames(dnase)
+	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
+}
+
+# script that calls the heatmap function for all files in a folder. Also compresses them and sorts by supplied list.
+chip.heatmaps.folder.sortbyX <- function(folder, sortby, outfolder){
+	files <- list.files(folder)
+	for (file in files){
+		if(grepl('.txt',file)){
+			path <- paste(folder, file,sep='/')
+			x <- read.table(path, row.names=1)
+			x <- x[sortby, ]
+			x <- as.matrix(x)
+			x <- chip.heatmap.compress(x,0.99,0.7)
+			gene.name <- gsub('.txt','',file)
+			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
+			jpeg(paste(outfolder,'/',gene.name,'.jpeg',sep=''),4000,4000)
+			chip.heatmap(x, 'test', 'blue')
+			dev.off()
+		}
+	}
+}
+
+# Does top and bottom compression for chip heatmap files
+chip.heatmap.compress <- function(x, top=0.95, bottom=0.05){
+	max.val <- quantile(unlist(x), top, na.rm=TRUE)
+	min.val <- quantile(x, bottom, na.rm=TRUE)
+	x[x > max.val] <- max.val
+	x[x < min.val] <- min.val
+	return(x)
+}
+
+# uses heatmap.2 to print out a heatmap for ChIP values. Variety of colors available.
+chip.heatmap <- function(x, title, colour="blue"){
+	require(gplots)
+	require(RColorBrewer)
+
+	yellow.orange.red <- c("white",brewer.pal(9, "YlOrRd"))
+	orange.and.blue <- c(brewer.pal(9, "Oranges")[7:1], brewer.pal(9, "Blues")[1:9])
+	yellow.blue <- c(brewer.pal(9, "YlOrBr")[9:1], brewer.pal(9, "Blues")[1:9])
+	blue.yellow <- yellow.blue[18:1]
+	blues <- brewer.pal(9, "Blues")
+	reds <- brewer.pal(9, "Reds")
+	greens <- brewer.pal(9, "Greens")
+	greys <- brewer.pal(9, "Greys")
+	
+	if (colour[1] == "blue"){ colour <- blues}
+	if (colour[1] == "yellow.orange.red"){ colour <- yellow.orange.red}
+	if (colour[1] == "red"){ colour <- reds}
+	if (colour[1] == "green"){ colour <- greens}
+	if (colour[1] == "grey"){ colour <- greys}
+	#heatmap.2(x1)
+	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(colour)(1000))
+}
+
+# Special sorting function for polycomb chip heatmaps. Gets average on left and right sides of center position, uses a threshold of the 0.6 quantile, sorts by different combinations (left over threshold and right under threshold, etc.). Helps to visualize boundary behavior.
 chip.heatmaps.polycomb <- function(folder, outfolder){
 	files <- list.files(folder)
 	for (file in files){
@@ -620,69 +692,27 @@ chip.heatmaps.polycomb <- function(folder, outfolder){
 	}
 }
 
-chip.heatmaps.folder.sortbyBoundaryStrength <- function(folder, boundaryfile, outfolder){
-	boundaries <- read.table(boundaryfile)
-	boundaries <- boundaries[order(boundaries[,5], decreasing=TRUE),]
-	sortby <- paste(boundaries[,1], ':', boundaries[,2], '-', boundaries[,3], sep="")
-	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
-}
-
-chip.heatmaps.folder.sortbyDNase <- function(folder, DNase.file, outfolder){
-	dnase <- read.table(DNase.file, row.names=1)
-	window <- 5
-	middle <- round(ncol(dnase) / 2, 0)
-	means <- apply(dnase[,(middle - window):(middle + window)], MARGIN=1, mean)
-	dnase <- dnase[order(means, decreasing=TRUE),]
-	sortby <- rownames(dnase)
-	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
-}
-
-chip.heatmaps.folder.sortbyX <- function(folder, sortby, outfolder){
-	files <- list.files(folder)
-	for (file in files){
-		if(grepl('.txt',file)){
-			path <- paste(folder, file,sep='/')
-			x <- read.table(path, row.names=1)
-			x <- x[sortby, ]
-			x <- as.matrix(x)
-			x <- chip.heatmap.compress(x,0.99,0.7)
-			gene.name <- gsub('.txt','',file)
-			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
-			jpeg(paste(outfolder,'/',gene.name,'.jpeg',sep=''),4000,4000)
-			chip.heatmap(x, 'test', 'blue')
-			dev.off()
+chip.heatmaps.directionality <- function(gff.folder, heat.folder, outfolder, number){
+	files <- list.files(heat.folder)
+	for (heat.file in files){
+		gff.file <- gsub('_w.+_b.+.txt', '.gff3', heat.file, perl=TRUE)
+		heat <- read.table(paste(heat.folder, heat.file,sep="/"), row.names=1)
+		gff <- read.table(paste(gff.folder, gff.file,sep="/"))
+		topn <- gff[order(gff[,6], decreasing=TRUE)[1:number],]
+		sortby <- paste(topn[,1], ':', topn[,4], '-', topn[,5],sep='')
+		if (! grepl('chr', gff[1,1])){
+			sortby <- paste('chr', sortby,sep="")
 		}
+		heat.topn <- as.matrix(heat[sortby,])
+		heat.topn <- chip.heatmap.compress(heat.topn, 0.95, 0.05)
+		middle <- round(ncol(heat.topn) / 2,0)
+		window <- 99
+		jpeg(paste(outfolder, gsub('.txt', '.jpg', heat.file),sep='/'),4000,4000)
+		chip.heatmap(heat.topn[,(middle - window):(middle + window)], 'test', 'grey')
+		dev.off()
+		#return()
 	}
 }
-
-chip.heatmap.compress <- function(x, top=0.95, bottom=0.05){
-	max.val <- quantile(unlist(x), top, na.rm=TRUE)
-	min.val <- quantile(x, bottom, na.rm=TRUE)
-	x[x > max.val] <- max.val
-	x[x < min.val] <- min.val
-	return(x)
-}
-
-# uses heatmap.2 to print out a heatmap for ChIP values. Variety of colors available.
-chip.heatmap <- function(x, title, colour="blue"){
-	require(gplots)
-	require(RColorBrewer)
-
-	yellow.orange.red <- c("white",brewer.pal(9, "YlOrRd"))
-	orange.and.blue <- c(brewer.pal(9, "Oranges")[7:1], brewer.pal(9, "Blues")[1:9])
-	yellow.blue <- c(brewer.pal(9, "YlOrBr")[9:1], brewer.pal(9, "Blues")[1:9])
-	blue.yellow <- yellow.blue[18:1]
-	blues <- brewer.pal(9, "Blues")
-	reds <- brewer.pal(9, "Reds")
-	
-	if (colour[1] == "blue"){ colour <- blues}
-	if (colour[1] == "yellow.orange.red"){ colour <- yellow.orange.red}
-	if (colour[1] == "red"){ colour <- reds}
-	#heatmap.2(x1)
-	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(colour)(1000))
-}
-
-
 ########################################################################
 # HELPER FUNCTIONS
 ########################################################################

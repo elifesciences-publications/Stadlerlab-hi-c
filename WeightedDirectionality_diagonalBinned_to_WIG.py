@@ -65,8 +65,9 @@ def Read_map(filename, chromosomes, sizes):
 			(chr, bin1, bin2, count) = line.split('\t')
 			bin1 = int(bin1)
 			bin2 = int(bin2)
+			if (count == "NA"): count = 0
 			if (abs(bin1 - bin2) < (2*int(options.width)) + 2): #just storing an extra couple bins to avoid thinking about end problems
-				bin_counts[chr][bin1][bin2] = int(count)
+				bin_counts[chr][bin1][bin2] = float(count)
 	infile.close()
 	return bin_counts
 
