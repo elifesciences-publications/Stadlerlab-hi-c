@@ -16,8 +16,6 @@ def parse_options():
 	parser = OptionParser()
 	parser.add_option("-f", "--file", dest="filename",
 					  help="Reduced bin file", metavar="FILE")
-	parser.add_option("-l", "--locations", dest="loc_file",
-					  help="File of locations to map", metavar="FILE2")
 	parser.add_option("-b", "--binsize", dest="bin_size",
 					  help="Bin size in bp", metavar="BINSIZE")
 	parser.add_option("-s", "--file_stem", dest="file_stem",
@@ -27,33 +25,22 @@ def parse_options():
 
 	(options, args) = parser.parse_args()
 	return options
-            
-def MakeBins():
-	bin_counts = {}
-	chromosomes = ('2L','X','3L','4','2R','3R')
-	bin_size = int(options.bin_size)
-	sizes = (23011544, 22422827, 24543557, 1351857, 21146708, 27905053)
-	for i in range(0,6):
-		num_bins = int(sizes[i] / bin_size)
-		chr = chromosomes[i]
-		bin_counts[chr] = {}
-		for j in range(0, num_bins + 1):
-			bin_counts[chr][j] = {}
-	return bin_counts
 
-def Generate_map(name, chr, pos1, pos2):
-	outfile_local = options.file_stem + name + '.txt'
+def Generate_map(chr, bin1, bin2, bin_size):
+	pos1 = bin1 * bin_size
+	pos2 = bin2 * bin_size + bin_size - 1
+	outfile_local = options.file_stem + '/' + chr + '_' + str(pos1) + '_' + str(pos2) + '.txt'
 	outfile = open(outfile_local, 'w')
 	#print colnames
-	for k in range (pos1, pos2 + 1):
-		if (k != pos1):
+	for k in range (bin1, bin2 + 1):
+		if (k != bin1):
 			outfile.write('\t')
 		outfile.write(chr + '_' + str(k))
 	outfile.write('\n')
 		
-	for i in range (pos1, pos2 + 1):
+	for i in range (bin1, bin2 + 1):
 		outfile.write(chr + '_' + str(i)) #row name
-		for j in range(pos1, pos2 + 1):
+		for j in range(bin1, bin2 + 1):
 			count = '0.0'
 			if (i in bin_counts[chr]):
 				if(j in bin_counts[chr][i]):
@@ -78,8 +65,8 @@ def add_count(bin_counts, chr, bin1, bin2, count):
 options = parse_options()
 #bin_counts = MakeBins()
 bin_counts = {}
-width_to_store = int(options.width)
-
+width = int(options.width)
+bin_size = int(options.bin_size)
 infile = open(options.filename,'r')
 
 for line in infile:
@@ -88,28 +75,20 @@ for line in infile:
 		(chr, bin1, bin2, count) = line.split('\t')
 		bin1 = int(bin1)
 		bin2 = int(bin2)
-		if (abs(bin1 - bin2) < (width_to_store + 2)): #just storing an extra couple bins to avoid thinking about end problems
+		if (abs(bin1 - bin2) < (width + 2)): #just storing an extra couple bins to avoid thinking about end problems
 			add_count(bin_counts, chr, bin1, bin2, count)
 		#bin_counts[chr][bin1][bin2] = count
 
 infile.close()
 
-locfile = open(options.loc_file, 'r')
 
-for line in locfile:
-	line = line.rstrip()
-	items = line.split('\t')
-	name = items[0]
-	chr = items[1]
+for chr in bin_counts:
 	chr = re.sub('chr', '', chr)
-	pos1 = items[2]
-	pos2 = items[3]
-	bin1 = int(int(pos1) / int(options.bin_size))
-	bin2 = int(int(pos2) / int(options.bin_size))
-	#if ((bin1 + 1) in bin_counts[chr][bin1]): #this is just a test for whether this chromosome was loaded. Allows inclusion of all locations in single file
-	#	Generate_map(name, chr, bin1, bin2)
-	if (chr in bin_counts):
-		Generate_map(name, chr, bin1, bin2)
-
-locfile.close()
+	for i in range(0, 10000):
+		start_bin = i * width
+		end_bin = start_bin + width - 1
+		if (end_bin in bin_counts[chr]):
+			Generate_map(chr, start_bin, end_bin, bin_size)
+		else:
+			break
 

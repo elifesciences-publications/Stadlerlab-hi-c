@@ -525,7 +525,7 @@ polytene.plot.heat <- function(filename, outname, topcompress=0.995, bottomcompr
 }
 
 # Takes a "boundary score" file which has the position (chr Lmost Rmost) and the average directionality score for a window to the left and right. The file has this for every bin in the genome of a certain size. This code first calls bins as boundaries by requiring the left and right windows to surpass supplied thresholds. This often leaves you with several consecutive bins that are called boundaries. The merge function within this function resolves these in the following way: contiguous called boundaries are merged into single elements, the position is reported as the midpoint and the boundary score is reported as the maximum score for any bin within the contiguous block. I played around with several options (leftmost, selecting the max scoring bin, etc.) and decided this was the most reliable.
-boundaries.call <- function(x, left.thresh, right.thresh){
+boundaries.call <- function(boundary.score.file, left.thresh, right.thresh){
 	boundaries.merge <- function(x1, merge.dist=2000){
 		#return(x1)
 		merged <- data.frame(chr=character(), Lmost = integer(), Rmost = integer(), name = character(), boundaryScore = numeric())
@@ -554,6 +554,7 @@ boundaries.call <- function(x, left.thresh, right.thresh){
 		}
 		return(merged)
 	}
+	x <- read.table(boundary.score.file, skip=1)
 	left.thresh <- -1 * left.thresh
 	called <- x[x[,4] <= left.thresh & x[,5] >= right.thresh,]
 	called <- cbind(called, called[,5] - called[,4])
@@ -561,7 +562,7 @@ boundaries.call <- function(x, left.thresh, right.thresh){
 }
 
 # Makes heatmaps for all the local heatmap files in a folder. Creates multiple plots with a series of value compressions.
-local.heatmap.plot.series <- function(folder){
+local.heatmap.plot.compression.series <- function(folder, outfolder, LOG=TRUE){
 	files <- list.files(folder)
 	for (file in files){
 		if(! grepl('location', file)){
@@ -572,16 +573,49 @@ local.heatmap.plot.series <- function(folder){
 			outstem <- gsub('.txt','', file)
 			
 			x <- read.matrix(paste(folder, file, sep=''))
+			
 			x[is.na(x)] <- 0
-			for (top in c(1, 0.99, 0.98, 0.97)){
-				for (bottom in c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)){
-					outfile <- paste(date.string, '_', outstem, '_', top, '_', bottom, '.jpg' ,sep='')
+			if(LOG){
+				x <- HiC.matrix.scale.log(x)
+			}
+			for (top in c(0.995)){
+				#for (bottom in c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9)){
+				for (bottom in c(0.65, 0.7, 0.75, 0.8)){
+					outfile <- paste(outfolder, '/', date.string, '_', outstem, '_', top, '_', bottom, '.jpg' ,sep='')
 					x1 <- HiC.matrix.compress(x, top, bottom)
 					diag(x1) <- max(x1)
 					jpeg(outfile, 4000,4000)
 					heatmap.natural(x1)
 					dev.off()
 				}
+			}
+		}
+	}
+}
+
+# Makes heatmaps for all the local heatmap files in a folder. Creates multiple plots with different zoom levels
+local.heatmap.plot.zoom.series <- function(folder, outfolder, LOG=TRUE){
+	files <- list.files(folder)
+	for (file in files){
+		if(! grepl('location', file)){
+			date.string <- gsub('-','',Sys.Date())
+			if (substr(folder, nchar(folder), nchar(folder)) != '/'){ folder <- paste(folder, '/', sep='')}
+			outstem <- gsub('.txt','', file)
+			
+			x <- read.matrix(paste(folder, file, sep=''))
+			x[is.na(x)] <- 0
+			if(LOG){
+				x <- HiC.matrix.scale.log(x)
+			}
+			x1 <- HiC.matrix.compress(x, 0.995, 0.65)
+			middle <- round(ncol(x1) / 2, 0)
+			for (width in seq(10, middle, 10)){
+				outfile <- paste(outfolder, '/', date.string, '_', outstem, '_99_65_w', width, '.jpg' ,sep='')
+				diag(x1) <- max(x1)
+				bins <- (middle - width):(middle + width)
+				jpeg(outfile, 4000,4000)
+				heatmap.natural(x1[bins, bins])
+				dev.off()
 			}
 		}
 	}
@@ -628,6 +662,28 @@ chip.heatmaps.folder.sortbyX <- function(folder, sortby, outfolder){
 			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
 			jpeg(paste(outfolder,'/',gene.name,'.jpeg',sep=''),4000,4000)
 			chip.heatmap(x, 'test', 'blue')
+			dev.off()
+		}
+	}
+}
+
+# script that calls the heatmap function for all files in a folder. Also compresses them and sorts by supplied list.
+directionality.heatmaps.folder.sortbyX <- function(folder, boundaryfile, outfolder){
+	boundaries <- read.table(boundaryfile)
+	boundaries <- boundaries[order(boundaries[,5], decreasing=TRUE),]
+	sortby <- paste(boundaries[,1], ':', boundaries[,2], '-', boundaries[,3], sep="")
+	files <- list.files(folder)
+	for (file in files){
+		if(grepl('.txt',file)){
+			path <- paste(folder, file,sep='/')
+			x <- read.table(path, row.names=1)
+			x <- x[sortby, ]
+			x <- as.matrix(x)
+			x <- chip.heatmap.compress(x,0.95,0.05)
+			gene.name <- gsub('.txt','',file)
+			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
+			jpeg(paste(outfolder,'/',gene.name,'.jpeg',sep=''),4000,4000)
+			chip.heatmap(x, 'test', 'grey')
 			dev.off()
 		}
 	}
@@ -692,7 +748,7 @@ chip.heatmaps.polycomb <- function(folder, outfolder){
 	}
 }
 
-chip.heatmaps.directionality <- function(gff.folder, heat.folder, outfolder, number){
+chip.heatmaps.directionality.around.peaks <- function(gff.folder, heat.folder, outfolder, number){
 	files <- list.files(heat.folder)
 	for (heat.file in files){
 		gff.file <- gsub('_w.+_b.+.txt', '.gff3', heat.file, perl=TRUE)
@@ -713,6 +769,77 @@ chip.heatmaps.directionality <- function(gff.folder, heat.folder, outfolder, num
 		#return()
 	}
 }
+
+rank.correlate.chip.boundary <- function(chip.filename, boundary.filename){
+	chip <- read.table(chip.filename, row.names=1)
+	boundaries <- read.table(boundary.filename)
+	boundaries <- boundaries[order(boundaries[,5], decreasing=TRUE),]
+	sortby <- paste(boundaries[,1], ':', boundaries[,2], '-', boundaries[,3], sep="")
+	chip.sorted <- chip[sortby,]
+	middle <- round(ncol(chip.sorted) / 2,0)
+	means.window <- 5
+	chip.means <- apply(chip[,(middle - means.window):(middle + means.window)], MARGIN=1, mean)
+	plot(chip.means, boundaries[,5])
+	cor(chip.means, boundaries[,5], method="spearman")
+}
+
+table.make.boundaryScore.chip <- function(boundary.score.file,wig.folder){
+	wig.files <- list.files(wig.folder)
+	boundary.scores <- read.table(boundary.score.file, skip=1)
+	x <- data.frame(boundary.scores[,5] - boundary.scores[,4], row.names=paste(boundary.scores[,1], ':', boundary.scores[,2], '-', boundary.scores[,3], sep=''))
+	colnames(x)[1] <- 'boundaryScore'
+	for (wig.file in wig.files){
+		wig <- read.table(paste(wig.folder, wig.file, sep='/'))
+		rownames(wig) <- paste(wig[,1], ':', wig[,2], '-', wig[,3], sep='')
+		x <- cbind(x, wig[rownames(x),4])
+		name <- gsub('_binned.*', '', wig.file, perl=TRUE)
+		colnames(x)[length(colnames(x))] <- name
+	}
+	return(x)
+}
+
+manual.boundary.caller <- function(folder){
+	files <- list.files(folder)
+	locations <- character()
+	for (file in files){
+		print(file)
+		stem <- gsub('.txt','', file)
+		items <- strsplit(stem, '_')
+		chr <- items[[1]][1]
+		pos1 <- as.numeric(items[[1]][2])
+		pos2 <- as.numeric(items[[1]][3])
+		#print(pos1)
+		left.correction <- 0.02378131
+		right.correction <- 0.9480718
+		size <- pos2 - pos1
+		dev.new(width=9,height=6.5)
+		x <- read.table(paste(folder, '/', file,sep=''))
+		x[is.na(x)] <- 0
+		x <- HiC.matrix.scale.log(x)
+		x <- as.matrix(x)
+		x <- HiC.matrix.compress(x, 0.995, 0.71)
+		heatmap.natural(x)
+		clicks <- locator()
+		#return(clicks)
+		for (i in 1:length(clicks$x)){
+			x.fraction <- (clicks$x[i] - left.correction) * (1/(right.correction - left.correction))
+			x.pos <- (x.fraction * size) + pos1
+			x.pos <- round(x.pos, 0)
+			#y.fraction <- (clicks$y[i] - left.correction) * (1/(right.correction - left.correction))
+			#y.pos <- (y.fraction * size) + pos1
+			#mean.pos <- round((x.pos + y.pos) / 2,0)
+			#locations <- append(locations, paste(chr, mean.pos,sep=':'))
+			locations <- append(locations, paste(chr, x.pos,sep=':'))
+		}
+		dev.off()
+	}
+	return(locations)
+}
+
+temp.loop.print <- function(folder){
+	
+}
+
 ########################################################################
 # HELPER FUNCTIONS
 ########################################################################
