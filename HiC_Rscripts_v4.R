@@ -579,8 +579,8 @@ local.heatmap.plot.compression.series <- function(folder, outfolder, LOG=TRUE){
 				x <- HiC.matrix.scale.log(x)
 			}
 			for (top in c(0.995)){
-				#for (bottom in c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9)){
-				for (bottom in c(0.65, 0.7, 0.75, 0.8)){
+				for (bottom in c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9)){
+				#for (bottom in c(0.65, 0.7, 0.75, 0.8)){
 					outfile <- paste(outfolder, '/', date.string, '_', outstem, '_', top, '_', bottom, '.jpg' ,sep='')
 					x1 <- HiC.matrix.compress(x, top, bottom)
 					diag(x1) <- max(x1)
@@ -607,7 +607,7 @@ local.heatmap.plot.zoom.series <- function(folder, outfolder, LOG=TRUE){
 			if(LOG){
 				x <- HiC.matrix.scale.log(x)
 			}
-			x1 <- HiC.matrix.compress(x, 0.995, 0.65)
+			x1 <- HiC.matrix.compress(x, 0.995, 0.7)
 			middle <- round(ncol(x1) / 2, 0)
 			for (width in seq(10, middle, 10)){
 				outfile <- paste(outfolder, '/', date.string, '_', outstem, '_99_65_w', width, '.jpg' ,sep='')
@@ -626,7 +626,9 @@ chip.heatmaps.control <- function(folder, outfolder, number){
 	files <- list.files(folder)
 	x <- read.table(paste(folder, files[1], sep="/"), row.names=1)
 	sortby <- rownames(x)[sample(1:nrow(x), number)]
-	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
+	for (file in files){
+		chip.heatmaps.folder.sortbyX(folder, file, sortby, outfolder)
+	}
 }
 
 # makes heatmaps for all files in the supplied folder, sorted according to boundary score in supplied boundary file.
@@ -634,36 +636,50 @@ chip.heatmaps.folder.sortbyBoundaryStrength <- function(folder, boundaryfile, ou
 	boundaries <- read.table(boundaryfile)
 	boundaries <- boundaries[order(boundaries[,5], decreasing=TRUE),]
 	sortby <- paste(boundaries[,1], ':', boundaries[,2], '-', boundaries[,3], sep="")
-	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
+	files <- list.files(folder)
+	for (file in files){
+			chip.heatmaps.folder.sortbyX(folder, file, sortby, outfolder)
+	}
 }
 
 # same as above but sorts by the DNase accessibility score at the middle 11 columns
-chip.heatmaps.folder.sortbyDNase <- function(folder, DNase.file, outfolder){
-	dnase <- read.table(DNase.file, row.names=1)
-	window <- 5
-	middle <- round(ncol(dnase) / 2, 0)
-	means <- apply(dnase[,(middle - window):(middle + window)], MARGIN=1, mean)
-	dnase <- dnase[order(means, decreasing=TRUE),]
-	sortby <- rownames(dnase)
-	chip.heatmaps.folder.sortbyX(folder, sortby, outfolder)
+chip.heatmaps.folder.sortbyWIG <- function(folder, outfolder, WIG.file, SELF=FALSE){
+	get.sortby <- function(wig.file){
+		if (! grepl('/', wig.file)){
+			wig.file = paste(folder, '/', wig.file, sep = '')
+		}
+		wig <- read.table(wig.file, row.names=1)
+		window <- 5
+		middle <- round(ncol(wig) / 2, 0)
+		means <- apply(wig[,(middle - window):(middle + window)], MARGIN=1, mean)
+		wig <- wig[order(means, decreasing=TRUE),]
+		sortby <- rownames(wig)
+	}
+	if (!SELF){
+		sortby <- get.sortby(WIG.file)
+	}
+	files <- list.files(folder)
+	for (file in files){
+		if (SELF){
+			sortby <- get.sortby(file)
+		}
+		chip.heatmaps.folder.sortbyX(folder, file, sortby, outfolder)
+	}
 }
 
 # script that calls the heatmap function for all files in a folder. Also compresses them and sorts by supplied list.
-chip.heatmaps.folder.sortbyX <- function(folder, sortby, outfolder){
-	files <- list.files(folder)
-	for (file in files){
-		if(grepl('.txt',file)){
-			path <- paste(folder, file,sep='/')
-			x <- read.table(path, row.names=1)
-			x <- x[sortby, ]
-			x <- as.matrix(x)
-			x <- chip.heatmap.compress(x,0.99,0.7)
-			gene.name <- gsub('.txt','',file)
-			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
-			jpeg(paste(outfolder,'/',gene.name,'.jpeg',sep=''),4000,4000)
-			chip.heatmap(x, 'test', 'blue')
-			dev.off()
-		}
+chip.heatmaps.folder.sortbyX <- function(folder, file, sortby, outfolder){
+	if(grepl('.txt',file)){
+		path <- paste(folder, file,sep='/')
+		x <- read.table(path, row.names=1)
+		x <- x[sortby, ]
+		x <- as.matrix(x)
+		x <- chip.heatmap.compress(x,0.99,0.7)
+		gene.name <- gsub('.txt','',file)
+		#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
+		jpeg(paste(outfolder,'/',gene.name,'.jpeg',sep=''),4000,4000)
+		chip.heatmap(x, 'test', 'blue')
+		dev.off()
 	}
 }
 
@@ -738,7 +754,8 @@ chip.heatmaps.polycomb <- function(folder, outfolder){
 			sortby <- c(over.under, under.over, over.over, under.under)
 			x <- x[sortby, ]
 			x <- as.matrix(x)
-			x <- chip.heatmap.compress(x,0.99,0.7)
+			#x <- chip.heatmap.compress(x,0.99,0.7)
+			x <- chip.heatmap.compress(x,0.99,0.75)
 			gene.name <- gsub('.txt','',file)
 			#pdf(paste(folder,'/',gene.name,'.pdf',sep=''),15,15)
 			jpeg(paste(outfolder,'/',gene.name,'.jpeg',sep=''),4000,4000)
@@ -783,7 +800,7 @@ rank.correlate.chip.boundary <- function(chip.filename, boundary.filename){
 	cor(chip.means, boundaries[,5], method="spearman")
 }
 
-table.make.boundaryScore.chip <- function(boundary.score.file,wig.folder){
+bigTable.make.boundaryScore.chip <- function(boundary.score.file,wig.folder){
 	wig.files <- list.files(wig.folder)
 	boundary.scores <- read.table(boundary.score.file, skip=1)
 	x <- data.frame(boundary.scores[,5] - boundary.scores[,4], row.names=paste(boundary.scores[,1], ':', boundary.scores[,2], '-', boundary.scores[,3], sep=''))
@@ -796,6 +813,40 @@ table.make.boundaryScore.chip <- function(boundary.score.file,wig.folder){
 		colnames(x)[length(colnames(x))] <- name
 	}
 	return(x)
+}
+
+bigTable.add.logistic.column <- function(bigTable, boundary.file, name){
+	x1 <- cbind(bigTable, 0)
+	colnames(x1)[ncol(x1)] <- name
+	bounds <- read.table(boundary.file)
+	boundary.names <- paste(bounds[,1], ':',bounds[,2],'-',bounds[,3],sep='')
+	x1[which(rownames(x1) %in% boundary.names), name] <- 1
+	return(x1)
+}
+
+ROC.draw <- function(model, dep.variable){
+	predict <- predict(model, type='response')
+	ROCRpred <- prediction(predict, dep.variable)
+	ROCRperf <- performance(ROCRpred, 'tpr','fpr')
+	plot(ROCRperf, colorize = FALSE, text.adj = c(-0.2,1.7))
+}
+
+logistic.table.make <- function(bigtable){
+	#x <- data.frame(character(), character(), character())
+	new.table <- data.frame()
+	#newtable <- data.frame(c(1,1,1,1))
+	#colnames(newtable) <- c('formula', 'residual.deviance', 'aic', 'coefficient')
+	for (i in 1:29){
+		#print('booya')
+		form <- paste('machineTop1000', ' ~ ', colnames(bigtable)[i], sep='')
+		model <- glm(form, data=a1, family=binomial(link='logit'))
+		new.row <- c(form, model$deviance, model$aic, model$coefficient[2])
+		if (i == 1){ new.table <- new.row}
+		else{ new.table <- rbind(new.table, new.row)}
+		#newtable <- rbind(newtable, c(colnames(bigtable)[i], as.character(model$deviance), as.character(model$aic)))
+		#print(c(form, model$deviance, model$aic, model$coefficient[2]))
+	}
+	return(new.table)
 }
 
 manual.boundary.caller <- function(folder){
