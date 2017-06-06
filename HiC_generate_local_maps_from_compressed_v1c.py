@@ -42,7 +42,7 @@ def MakeBins():
 	return bin_counts
 
 def Generate_map(name, chr, pos1, pos2):
-	outfile_local = options.file_stem + name + '.txt'
+	outfile_local = options.file_stem + '_' + name + '.txt'
 	outfile = open(outfile_local, 'w')
 	#print colnames
 	for k in range (pos1, pos2 + 1):

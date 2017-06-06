@@ -502,10 +502,11 @@ HiC.matrix.correlation.plot <- function(file1, file2, outfile, sample.size=10000
 
 
 # prints a simple key for the heatmap natural color scheme.
-heatmap.key.make <- function(outfilename){
+heatmap.key.make <- function(outfilename, colour){
 	x <- as.matrix(rbind(1:200,1:200))
-	jpeg(outfilename,200,200)
-	heatmap.natural(x)
+	jpeg(outfilename,400,400)
+	chip.heatmap(x, '', colour)
+	dev.off()
 	dev.off()
 }
 
@@ -579,8 +580,8 @@ local.heatmap.plot.compression.series <- function(folder, outfolder, LOG=TRUE){
 				x <- HiC.matrix.scale.log(x)
 			}
 			for (top in c(0.995)){
-				for (bottom in c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9)){
-				#for (bottom in c(0.65, 0.7, 0.75, 0.8)){
+				#for (bottom in c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9)){
+				for (bottom in c(0.65, 0.7, 0.75, 0.8)){
 					outfile <- paste(outfolder, '/', date.string, '_', outstem, '_', top, '_', bottom, '.jpg' ,sep='')
 					x1 <- HiC.matrix.compress(x, top, bottom)
 					diag(x1) <- max(x1)
@@ -733,6 +734,7 @@ chip.heatmap <- function(x, title, colour="blue"){
 	if (colour[1] == "red"){ colour <- reds}
 	if (colour[1] == "green"){ colour <- greens}
 	if (colour[1] == "grey"){ colour <- greys}
+	if (colour[1] == "blue.yellow"){ colour <- blue.yellow}
 	#heatmap.2(x1)
 	heatmap.2(x,dendrogram='none', main=title, Rowv=FALSE, Colv=FALSE,symm=TRUE,key=FALSE,keysize=0.5,key.title=NA,key.xlab=NA,key.ylab=NA,trace='none',scale='none',labRow=NA,labCol=NA, col=colorRampPalette(colour)(1000))
 }
@@ -777,7 +779,7 @@ chip.heatmaps.directionality.around.peaks <- function(gff.folder, heat.folder, o
 			sortby <- paste('chr', sortby,sep="")
 		}
 		heat.topn <- as.matrix(heat[sortby,])
-		heat.topn <- chip.heatmap.compress(heat.topn, 0.95, 0.05)
+		heat.topn <- chip.heatmap.(heat.topn, 0.95, 0.05)
 		middle <- round(ncol(heat.topn) / 2,0)
 		window <- 99
 		jpeg(paste(outfolder, gsub('.txt', '.jpg', heat.file),sep='/'),4000,4000)

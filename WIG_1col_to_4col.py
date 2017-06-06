@@ -31,7 +31,6 @@ outfile = open(outfilename, 'w')
 
 curr_chr = ''
 curr_span = 0
-curr_pos = 0
 track_line_written = False
 
 #outfile.write('track type=wiggle_0 name="test" description="test"\n')
@@ -48,16 +47,7 @@ for line in infile:
 		if (not re.match('chr', curr_chr)):
 			curr_chr = 'chr' + curr_chr
 		curr_span = int(span[5:])
-		#print(curr_chr + ' ' + curr_span
-	elif(line[0:4] == 'fixe'):
-		items = line.split()
-		curr_chr = items[1]
-		curr_chr = curr_chr[6:]
-		curr_pos = 0
-		curr_span = items[4]
-		curr_span = int(curr_span[5:])
-		if (not re.match('chr', curr_chr)):
-			curr_chr = 'chr' + curr_chr
+		#print(curr_chr + ' ' + curr_span)
 	elif(line[0] == '#'):
 		pass
 	else:
@@ -68,14 +58,4 @@ for line in infile:
 			(pos, value) = line.split()
 			pos = int(pos)
 			outfile.write(curr_chr + '\t' + str(pos) + '\t' + str(pos + curr_span - 1) + '\t' + value + '\n')
-		elif(len(line_values) == 1):
-			value = line
-			posL = curr_pos
-			posR = posL + curr_span
-			curr_pos = posR
-			outfile.write(curr_chr + '\t' + str(posL) + '\t' + str(posR) + '\t' + value + '\n')
 infile.close()
-
-
-
-
