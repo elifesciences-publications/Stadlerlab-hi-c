@@ -580,8 +580,9 @@ local.heatmap.plot.compression.series <- function(folder, outfolder, LOG=TRUE){
 				x <- HiC.matrix.scale.log(x)
 			}
 			for (top in c(0.995)){
-				#for (bottom in c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9)){
-				for (bottom in c(0.65, 0.7, 0.75, 0.8)){
+				for (bottom in c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9)){
+				#for (bottom in c(0.65, 0.7, 0.75, 0.8)){
+				#for (bottom in c(0.45, 0.55, 0.65)){
 					outfile <- paste(outfolder, '/', date.string, '_', outstem, '_', top, '_', bottom, '.jpg' ,sep='')
 					x1 <- HiC.matrix.compress(x, top, bottom)
 					diag(x1) <- max(x1)
@@ -802,7 +803,7 @@ rank.correlate.chip.boundary <- function(chip.filename, boundary.filename){
 	cor(chip.means, boundaries[,5], method="spearman")
 }
 
-bigTable.make.boundaryScore.chip <- function(boundary.score.file,wig.folder){
+bigTable.make.boundaryScore.chip <- function(boundary.score.file, wig.folder){
 	wig.files <- list.files(wig.folder)
 	boundary.scores <- read.table(boundary.score.file, skip=1)
 	x <- data.frame(boundary.scores[,5] - boundary.scores[,4], row.names=paste(boundary.scores[,1], ':', boundary.scores[,2], '-', boundary.scores[,3], sep=''))
@@ -833,15 +834,15 @@ ROC.draw <- function(model, dep.variable){
 	plot(ROCRperf, colorize = FALSE, text.adj = c(-0.2,1.7))
 }
 
-logistic.table.make <- function(bigtable){
+logistic.table.make <- function(bigtable, dep.variable){
 	#x <- data.frame(character(), character(), character())
 	new.table <- data.frame()
 	#newtable <- data.frame(c(1,1,1,1))
 	#colnames(newtable) <- c('formula', 'residual.deviance', 'aic', 'coefficient')
 	for (i in 1:29){
 		#print('booya')
-		form <- paste('machineTop1000', ' ~ ', colnames(bigtable)[i], sep='')
-		model <- glm(form, data=a1, family=binomial(link='logit'))
+		form <- paste(dep.variable, ' ~ ', colnames(bigtable)[i], sep='')
+		model <- glm(form, data=bigtable, family=binomial(link='logit'))
 		new.row <- c(form, model$deviance, model$aic, model$coefficient[2])
 		if (i == 1){ new.table <- new.row}
 		else{ new.table <- rbind(new.table, new.row)}

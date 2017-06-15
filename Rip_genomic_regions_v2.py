@@ -37,7 +37,7 @@ outfile = open(options.out_stem + '_seqs_5p' + str(options.five) + '_3p' + str(o
 for line in listfile:
 	line = line.rstrip()
 	if(line[0:5] != 'track'):
-		(chr, posL, posR, name, Bscore) = line.split()
+		(chr, posL, posR, name, Bscore) = line.split()[0:5]
 		posL = int(posL)
 		posR = int(posR)
 		posL = posL - int(options.five)
