@@ -1,20 +1,18 @@
 '''
-This script was intended to find boundaries delineating closed domains a la eve and ftz,
-which might be described as something like a strong TAD. I'm not sure it actually does 
-that, but it does something interesting. Basically it scans the diagonal of a HI-C matrix
+Scans the diagonal of a HI-C matrix
 and counts the linkages between that bin and the bins to the left and the right, with 
 both the distance included, and the directly adjacent bins to skip, submitted by the user.
-So for 1 kb bins, inputs of -w 10 -d 5 would add up all the linkages between the bin and
-bins between 3 and 10 kb to its left and to its right. The L/R score is just hte simple
+So for 1 kb bins, inputs of -w 10 -d 3 would add up all the linkages between the bin and
+bins between 3 and 10 kb to its left and to its right. The L/R score is just the simple
 log ratio of right to left.
 
-Visual inspection: for 500 bp bins, w30 d 10 seems solid
+Added a weight for the total reads used to compute directionality for a given bin. The L/R
+directionality score is scaled by a, such that weighted directionality = (raw directionality)^a.
 
 Input file is the "reduced diagonal" representation: chr	Lmost	Rmost	count
 
 Writes a WIG file
 
-This script was originally called Find_boundaries_attempt1
 
 Modified to allow it to also output a simple count of hte total Hi-C reads in the window (no direction component)
 by using the -t --total tag

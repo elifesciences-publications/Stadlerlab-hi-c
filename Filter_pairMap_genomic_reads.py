@@ -1,5 +1,6 @@
 '''
-Scans a pair mapping file and takes in-out (+-) reads spaced by less than a supplied distance and 
+Filters a paired mapping file to remove genomic (non Hi-C) reads. Removes 'in-out' (strand of Left end is +, Right end is -) reads that span
+a distance less than the supplied distance cutoff.
 '''
 from optparse import OptionParser
 import sys
@@ -13,8 +14,6 @@ def parse_options():
 	parser = OptionParser()
 	parser.add_option("-f", "--infile", dest="infile",
 					  help="input file: paired mapped", metavar="INFILE")
-	parser.add_option("-o", "--outfile", dest="outfile",
-					  help="outfile stem", metavar="OUTFILE")
 	parser.add_option("-d", "--distance", dest="distance",
 					  help="distance cutoff", metavar="DISTANCE")
 	(options, args) = parser.parse_args()
@@ -26,7 +25,8 @@ options = parse_options()
 dist_cutoff = int(options.distance)
 
 infile = open(options.infile, 'r')
-outfile = open(options.outfile, 'w')
+out_stem = re.sub('.txt', '', options.infile)
+outfile = open(out_stem + '_genomicFiltered.txt', 'w')
 
 for line in infile:
 	line = line.rstrip()

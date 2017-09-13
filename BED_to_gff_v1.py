@@ -1,5 +1,5 @@
 '''
-
+Converts a BED format file to a gff3-like file for input into scripts that require it.
 '''
 from optparse import OptionParser
 import sys

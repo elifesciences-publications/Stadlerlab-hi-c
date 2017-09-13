@@ -1,19 +1,8 @@
 ########################################################################
-# Figure making functions
-########################################################################
-
-Fig.allchr.heat <- function(infilename, outfilename){
-	a <- HiC.matrix.processfromfile(infilename, 1, 0.7)
-	jpeg(outfilename, 4000,4000)
-	heatmap.natural(a)
-	dev.off()
-}
-
-########################################################################
 # Main functions
 ########################################################################
 
-# This is my goto. Basic heatmap that I'm using for all Hi-C matrices, implemented using heatmap.2 and a variety of color schemes. 
+# Basic heatmap that I'm using for all Hi-C matrices, implemented using heatmap.2 and a variety of color schemes. 
 heatmap.natural <- function(x){
 	require(gplots)
 	require(RColorBrewer)
@@ -135,8 +124,6 @@ HiC.heatmap.compression.series <- function(filename){
 	}
 }
 
-
-
 # Performs histogram equalization on a matrix.
 histogram.equalize <- function(x){
 	x1 <- round(x, digits=2)
@@ -152,7 +139,6 @@ histogram.equalize <- function(x){
 			#print(i)
 		#}
 	}
-	#return(cdf)
 	numrows <- length(x1[,1])
 	numcols <- length(x1[1,])
 	denom <- (numrows * numcols) - 1
@@ -229,41 +215,7 @@ HiC.click.coord <- function(chr.choice='all'){
 	}
 }
 
-#Zeros out everything but some given number of diagonal rows. So a width of 3 would leave the diagonal and the +1 and +2 diagonals, make everything else zero
-HiC.zeroOffDiag <- function(x, width){
-	x.rows <- length(x[,1])
-	x.cols <- length(x[1,])
-	x1 <- x
-	cols.to.zero.above <- width + 2 # leave two diagonals above the diagonal
-	cols.to.zero.below <- 1 # leave two diagonals below the diagonal
-	for (i in 1:x.rows){
-		if (cols.to.zero.above <= x.cols){
-			x1[i,cols.to.zero.above:x.cols] <- 0
-		}
-		cols.to.zero.above <- cols.to.zero.above + 1
-		
-		if (i > width + 1){
-			x1[i,1:cols.to.zero.below] <- 0
-			cols.to.zero.below <- cols.to.zero.below + 1
-		}		
-	}
-	return(x1)
-}
-
-#Zeros the diagonal and additional (+1, +2, etc. diagonal) diagonals as specified by width; leaves everything else.
-HiC.zeroDiag <- function(x, width){
-	x.rows <- length(x[,1])
-	x.cols <- length(x[1,])
-	x1 <- x
-	for (i in 1:x.rows){
-		start <- max(1, i - width)
-		stop <- min(x.cols, i + width)
-		x1[i, start:stop] <- 0
-	}	
-	return(x1)
-}
-
-# Extracts from a binned Hi-C matrix just a single chromosome or arm (intxs with self only)
+# Extracts just a single chromosome or arm from a binned Hi-C matrix  (intxs with self only)
 grab.chr <- function(x, chr){
 	hits <- grep(chr,rownames(x))
 	return(x[hits,hits])
@@ -331,24 +283,10 @@ HiC.make.uniform <- function(x,width,size){
 	return(x.new)
 }
 
-# Makes little blocks of 'doped' values along the diagonal. Makes boxes of size n by n (n defined by size variable) that have all counts increased by multiplying by supplied factor. Boxes alternate, with an altered box followed by an unaltered box.
-diagonal.dope <- function(x, size, factor){
-	x1 <- x
-	for (i in seq(1, nrow(x), 2*size)){
-		for (j in 0:(size - 1)){
-			for (k in 0:(size - 1)){
-				x1[i + j, i + k] <- factor * x[i + j, i + k]
-			}
-		}
-	}
-	return(x1)
-}
-
 # Makes heatmap plots for all .txt files in a supplied folder. Designed for "local" maps. Data can be logged or histogram equalized depending on preference.
 HiC.localPlot.from.folder <- function(folder, outfolder, size, bottom.compress=0, LOG=FALSE,HISTEQ=FALSE){
 	files <- list.files(folder)
 	for (file in files){
-		
 		file.stem <- gsub('.txt','',file)
 		outfile <- paste(outfolder, '/', file.stem, sep='')
 		file.path <- paste(folder, file, sep='/')
@@ -396,10 +334,6 @@ chip.metaprofile.multiple.fromfiles <- function(folder, outfile){
 	dev.off()
 }
 
-
-
-
-
 # For making overall decay plots. It's important not to have the ends of chromosomes in the decay data, so this uses the extract middle routine which cuts off the ends that don't have sufficient columns to left or right to match width, so a width of 40 will take only the middle of the chromosomes with the 40 bins on the ends left off.
 HiC.matrix.extractMiddles.allchr <- function(x, width){
 	x1 <- rbind(
@@ -412,8 +346,7 @@ HiC.matrix.extractMiddles.allchr <- function(x, width){
 	return(x1)
 }
 
-
-# Makes a plot of an "epigenomic" dataset (e.g., ChIP or DNase) that matches a region of Hi-C data. Hi-C matri supplied in hic and epigenomic file in epifile must have row names in the format of "chr_bin". The epigenomic file is normalized (subtract minimum, divide by max) and can optionally be expanded or contracted for visual purposes by raising to exponent. This probably shouldn't be used but some of the tracks are more "even" than others and it makes viewing them together difficult. As long as this change is noted, I think it's ok. Just changes the visuals, and for this purposes we're just trying to show where a signal is high or low so I think it's ok.
+# Makes a plot of an "epigenomic" dataset (e.g., ChIP or DNase) that matches a region of Hi-C data. Hi-C matrix supplied in hic and epigenomic file in epifile must have row names in the format of "chr_bin". The epigenomic file is normalized (subtract minimum, divide by max) and can optionally be expanded or contracted for visual purposes by raising to exponent. This probably shouldn't be used but some of the tracks are more "even" than others and it makes viewing them together difficult. As long as this change is noted, I think it's ok. Just changes the visuals, and for this purposes we're just trying to show where a signal is high or low so I think it's ok.
 epigenomic.match.plot <- function(hic, epifile, outfile, colour, exponent=1){
 	epi <- read.table(epifile, row.names=1)
 	epi <- epi[row.names(hic),1]
@@ -457,31 +390,6 @@ compartment.shading <- function(OE.matrix.file, outfile){
 	dev.off()
 }
 
-# Takes two files of Hi-C binned matrices, produces a simple difference map for the "cool region" at left end of 3R. I also set it up to do autonaming for hte output file with the date string at the beginning. Not sure why.
-cool.region.difference.heatmap <- function(filename1, filename2, name1, name2){
-	process <- function(filename){
-		x <- read.matrix(filename)
-		x <- grab.chr(x, '3R')
-		x <- HiC.matrix.vanilla.normalize(x)
-		x <- HiC.matrix.scale.log(x)
-		x <- x[55:390,55:390]
-		return(x)
-	}
-	plot.subtraction <- function(y1, y2, y1.name, y2.name){
-		date.string <- gsub('-','',Sys.Date())
-		y3 <- y1 - y2
-		#y3 <- histogram.equalize(y3)
-		jpeg(paste(date.string, '_', y1.name, '_minus_',y2.name,'.jpeg',sep=''),4000,4000)
-		heatmap.natural(y3)
-		dev.off()
-	}
-	x1 <- process(filename1)
-	x2 <- process(filename2)
-	plot.subtraction(x1, x2, name1, name2)	
-	plot.subtraction(x2, x1, name2, name1)	
-}
-
-
 # Takes two Hi-C binned matrix files, converts each into a single numeric vector, calculates teh correlation and makes a scatter plot. The plots contain too many points because the matrices are large, so I used sampling to just plot some of the points. The correlation is on the full dataset.
 HiC.matrix.correlation.plot <- function(file1, file2, outfile, sample.size=10000, return=FALSE){
 	x <- unlist(read.table(file1))
@@ -510,30 +418,13 @@ heatmap.key.make <- function(outfilename, colour){
 	dev.off()
 }
 
-
-#numbers are for 1300 bp bins
-polytene.plot.heat <- function(filename, outname, topcompress=0.995, bottomcompress=0.75, startbin=565, endbin=645, LOG=TRUE){
-	x <- read.matrix(filename)
-	x <- x[startbin:endbin,startbin:endbin]
-	x[is.na(x)] <- 0
-	x <- HiC.matrix.compress(x,topcompress, bottomcompress)
-	if (LOG){
-		x <- HiC.matrix.scale.log(x)
-	}
-	jpeg(outname, 4000,4000)
-	heatmap.natural(x)
-	dev.off()
-}
-
 # Takes a "boundary score" file which has the position (chr Lmost Rmost) and the average directionality score for a window to the left and right. The file has this for every bin in the genome of a certain size. This code first calls bins as boundaries by requiring the left and right windows to surpass supplied thresholds. This often leaves you with several consecutive bins that are called boundaries. The merge function within this function resolves these in the following way: contiguous called boundaries are merged into single elements, the position is reported as the midpoint and the boundary score is reported as the maximum score for any bin within the contiguous block. I played around with several options (leftmost, selecting the max scoring bin, etc.) and decided this was the most reliable.
 boundaries.call <- function(boundary.score.file, left.thresh, right.thresh){
 	boundaries.merge <- function(x1, merge.dist=2000){
-		#return(x1)
 		merged <- data.frame(chr=character(), Lmost = integer(), Rmost = integer(), name = character(), boundaryScore = numeric())
 		current.start <- 1
 		current.end <- 1
 		current.max.score <- x1[1, 6]
-		
 		
 		for(i in 2:nrow(x1)){
 			if (x1[i, 2] == x1[current.end, 3] + 1){
@@ -562,7 +453,7 @@ boundaries.call <- function(boundary.score.file, left.thresh, right.thresh){
 	return(boundaries.merge(called))
 }
 
-# Makes heatmaps for all the local heatmap files in a folder. Creates multiple plots with a series of value compressions.
+# Makes heatmaps for all the local heatmap files in a folder. Creates multiple plots with a series of value compressions (contrast settings).
 local.heatmap.plot.compression.series <- function(folder, outfolder, LOG=TRUE){
 	files <- list.files(folder)
 	for (file in files){
@@ -633,7 +524,7 @@ chip.heatmaps.control <- function(folder, outfolder, number){
 	}
 }
 
-# makes heatmaps for all files in the supplied folder, sorted according to boundary score in supplied boundary file.
+# makes heatmaps for all ChIP metaprofile files in the supplied folder, sorted according to boundary score in supplied boundary file.
 chip.heatmaps.folder.sortbyBoundaryStrength <- function(folder, boundaryfile, outfolder){
 	boundaries <- read.table(boundaryfile)
 	boundaries <- boundaries[order(boundaries[,5], decreasing=TRUE),]
@@ -669,7 +560,7 @@ chip.heatmaps.folder.sortbyWIG <- function(folder, outfolder, WIG.file, SELF=FAL
 	}
 }
 
-# script that calls the heatmap function for all files in a folder. Also compresses them and sorts by supplied list.
+# script that calls the heatmap function for all ChIP metaprofile files in a folder. Also compresses them and sorts by supplied list.
 chip.heatmaps.folder.sortbyX <- function(folder, file, sortby, outfolder){
 	if(grepl('.txt',file)){
 		path <- paste(folder, file,sep='/')
@@ -685,7 +576,7 @@ chip.heatmaps.folder.sortbyX <- function(folder, file, sortby, outfolder){
 	}
 }
 
-# script that calls the heatmap function for all files in a folder. Also compresses them and sorts by supplied list.
+# script that calls the heatmap function for all directionality files in a folder. Also compresses them and sorts by supplied list. For directionality around boundaries (or other supplied positions)
 directionality.heatmaps.folder.sortbyX <- function(folder, boundaryfile, outfolder){
 	boundaries <- read.table(boundaryfile)
 	boundaries <- boundaries[order(boundaries[,5], decreasing=TRUE),]
@@ -768,6 +659,7 @@ chip.heatmaps.polycomb <- function(folder, outfolder){
 	}
 }
 
+# Plots heatmaps for directionality files generated for sets of peaks. The gff folder and heatmap data folder must be matched, i.e. contain paired files. Script sorts the peaks and takes the top n (supplied) and plots directionality heatmaps in greyscale for each pair. 
 chip.heatmaps.directionality.around.peaks <- function(gff.folder, heat.folder, outfolder, number){
 	files <- list.files(heat.folder)
 	for (heat.file in files){
@@ -790,6 +682,7 @@ chip.heatmaps.directionality.around.peaks <- function(gff.folder, heat.folder, o
 	}
 }
 
+# Produces a scatterplot and correlation coefficient for boundary strength vs. supplied ChIP signal
 rank.correlate.chip.boundary <- function(chip.filename, boundary.filename){
 	chip <- read.table(chip.filename, row.names=1)
 	boundaries <- read.table(boundary.filename)
@@ -803,6 +696,7 @@ rank.correlate.chip.boundary <- function(chip.filename, boundary.filename){
 	cor(chip.means, boundaries[,5], method="spearman")
 }
 
+# Makes "big table" for regression. Generates a table with boundary scores for every bin and corresponding values from ChIP (etc.) datasets.
 bigTable.make.boundaryScore.chip <- function(boundary.score.file, wig.folder){
 	wig.files <- list.files(wig.folder)
 	boundary.scores <- read.table(boundary.score.file, skip=1)
@@ -818,6 +712,7 @@ bigTable.make.boundaryScore.chip <- function(boundary.score.file, wig.folder){
 	return(x)
 }
 
+# Takes a table generated by script above and adds a column of 1 or 0 based on a supplied boundary file (or other file of positions in chr [tab] pos1 [tab] pos2 format). Every position in the table that matches boundary.file entry gets a 1 and all others 0.
 bigTable.add.logistic.column <- function(bigTable, boundary.file, name){
 	x1 <- cbind(bigTable, 0)
 	colnames(x1)[ncol(x1)] <- name
@@ -827,31 +722,20 @@ bigTable.add.logistic.column <- function(bigTable, boundary.file, name){
 	return(x1)
 }
 
-ROC.draw <- function(model, dep.variable){
-	predict <- predict(model, type='response')
-	ROCRpred <- prediction(predict, dep.variable)
-	ROCRperf <- performance(ROCRpred, 'tpr','fpr')
-	plot(ROCRperf, colorize = FALSE, text.adj = c(-0.2,1.7))
-}
-
+# Takes a "big table" and performs logistic regression individually on each of the first 29 columns with the supplied dependent variable.
 logistic.table.make <- function(bigtable, dep.variable){
-	#x <- data.frame(character(), character(), character())
 	new.table <- data.frame()
-	#newtable <- data.frame(c(1,1,1,1))
-	#colnames(newtable) <- c('formula', 'residual.deviance', 'aic', 'coefficient')
 	for (i in 1:29){
-		#print('booya')
 		form <- paste(dep.variable, ' ~ ', colnames(bigtable)[i], sep='')
 		model <- glm(form, data=bigtable, family=binomial(link='logit'))
 		new.row <- c(form, model$deviance, model$aic, model$coefficient[2])
 		if (i == 1){ new.table <- new.row}
 		else{ new.table <- rbind(new.table, new.row)}
-		#newtable <- rbind(newtable, c(colnames(bigtable)[i], as.character(model$deviance), as.character(model$aic)))
-		#print(c(form, model$deviance, model$aic, model$coefficient[2]))
 	}
 	return(new.table)
 }
 
+# Script allowing user to "call" boundaries by clicking on a Hi-C heatmap. Takes a folder of files containing Hi-C matrices covering chunks of the genome, in any size, using the format chr_pos1_pos2.txt. It then produces a Hi-C map, using standard parameters, and records the positions of the user's clicks. Critically, it is only the X-position that matters, which can be useful. When user is done selecting boundaries, right-click to advance to the next panel.
 manual.boundary.caller <- function(folder){
 	files <- list.files(folder)
 	locations <- character()
@@ -889,9 +773,18 @@ manual.boundary.caller <- function(folder){
 	}
 	return(locations)
 }
+temp.loop.print <- function(folder){	
+}
 
-temp.loop.print <- function(folder){
-	
+########################################################################
+# Figure making functions
+########################################################################
+
+Fig.allchr.heat <- function(infilename, outfilename){
+	a <- HiC.matrix.processfromfile(infilename, 1, 0.7)
+	jpeg(outfilename, 4000,4000)
+	heatmap.natural(a)
+	dev.off()
 }
 
 ########################################################################

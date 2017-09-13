@@ -110,7 +110,7 @@ if (options.file_stem == 'none'):
 else:
 	file_stem = options.file_stem
 
-outfile = open(file_stem + '_diagBinCounts_' + str(bin_size) + 'bp_chr' + selected_chromosome + '.txt','w')
+outfile = open(file_stem + '_CompressedBinCounts_' + str(bin_size) + 'bp_' + selected_chromosome + '.txt','w')
 
 	 
 print('done reading\n')

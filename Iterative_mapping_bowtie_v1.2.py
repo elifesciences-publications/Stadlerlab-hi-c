@@ -63,10 +63,10 @@ unique_file = file_stem + "unique_" + str(init_truncation_length) + ".bowtie"
 
 
 if (file_to_map[-2:] == 'gz'):
-	call(["gzip", "-cd", file_to_map, "|", "./bowtie", num_cores, "-m1", "--best", "--strata", "--trim3", str(threeprime_trim),  "--un", unmapped_file, "--max", multiplyMapped_file, genome_path, "-", unique_file])
+	call(["gzip", "-cd", file_to_map, "|", "bowtie", num_cores, "-m1", "--best", "--strata", "--trim3", str(threeprime_trim),  "--un", unmapped_file, "--max", multiplyMapped_file, genome_path, "-", unique_file])
 
 else:
-	call(["./bowtie", num_cores, "-m1", "--best", "--strata", "--trim3", str(threeprime_trim),  "--un", unmapped_file, "--max", multiplyMapped_file, genome_path, file_to_map, unique_file])
+	call(["bowtie", num_cores, "-m1", "--best", "--strata", "--trim3", str(threeprime_trim),  "--un", unmapped_file, "--max", multiplyMapped_file, genome_path, file_to_map, unique_file])
 
 # Successively truncate and map
 
@@ -79,7 +79,7 @@ while truncation_length < read_length:
 	multiplyMapped_file = file_stem + 'mappingV' + version + "_multiplyMapped_" + str(truncation_length) + ".fastq"
 	unique_file = file_stem + "unique_" + str(truncation_length) + ".bowtie"
 	#call(["./bowtie", "-p2", "-m1", "--best", "--strata", " --trim3 ", str(threeprime_trim), " --un ", unmapped_file,  " --max ", multiplyMapped_file, genome_path, " 2> ", stats_file, " >", unique_map_file]) 
-	call(["./bowtie", num_cores, "-m1", "--best", "--strata", "--trim3", str(threeprime_trim), "--max", multiplyMapped_file, genome_path, file_to_map, unique_file])
+	call(["bowtie", num_cores, "-m1", "--best", "--strata", "--trim3", str(threeprime_trim), "--max", multiplyMapped_file, genome_path, file_to_map, unique_file])
 	truncation_length = truncation_length + iterator
 	threeprime_trim = read_length - truncation_length
 	call(["rm", file_to_map])

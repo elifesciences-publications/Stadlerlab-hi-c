@@ -1,11 +1,5 @@
 """
- This script takes a paired alignment file and, assigns each end to a bin (some chunk of 
- a chromosome defined by supplied bin size), and then prints out a matrix of bins vs. bins
- for all chromosomes.
  
- Some programming notes to check for: handling double counting of diagonal. 
- 
- v2: does bin counting for each chromosome at once, automatically assigns file names. 
 """
 
 from optparse import OptionParser
@@ -62,9 +56,6 @@ outfile = open(file_stem + '_binCounts_' + str(bin_size // 1000) + 'kB.txt','w')
 
 for chr in chromosomes:
 	for i in range(0,max_bin[chr]):
-		#if(i != 0):
-		#	outfile.write('\t')
-	#	print(chr + '\t' + str(bin))
 		if(counts[chr].has_key(i)):
 			outfile.write('chr' + chr + '_' + str(i) + '\t' + str(counts[chr][i]) + '\n')
 		else:

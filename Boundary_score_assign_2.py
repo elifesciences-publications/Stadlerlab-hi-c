@@ -1,5 +1,7 @@
 '''
-
+Takes a file of directionality scores, computes the average directionality within some window to the left and right
+of each bin, reports these averages as a WIG-style file. This is a bit of a legacy as it once produced a true WIG file.
+The output of this script can be read by R script boundaries.call to call boundaries with different thresholds. 
 '''
 from optparse import OptionParser
 from math import log

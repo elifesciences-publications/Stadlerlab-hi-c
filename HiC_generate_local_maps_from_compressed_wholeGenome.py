@@ -1,11 +1,8 @@
 '''
-Takes "diagonal bin coverage" from HiC_count_bin_linkages_singleChr_diagonal_v1a.py. This
-is a compressed way to store information that only stores information within some radius of
-the diagonal. It also takes a list of positions (tab-delimited: name\tchr\tposition) and
-a width and generate local matrices +- the width selected of each position.
-
-v1b: more efficiently stores data (uses way less memory)
-
+Takes "diagonal bin coverage" from HiC_count_bin_linkages_singleChr_diagonal_v1a.py. Generates a series of 
+Hi-C matrices of supplied width about diagonal, makes files for consecutive regions covering the entire
+genomic region represented by the count file. This script is used to generate the panels for manual
+boundary calling.
 
 '''
 from optparse import OptionParser

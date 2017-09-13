@@ -18,7 +18,6 @@ def parse_options():
 options = parse_options()
 infile = open(options.wig_file,'r')
 outfilename = ''
-#print(options.wig_file)
 if re.search('WIG$',options.wig_file):
 	outfilename = re.sub('.WIG$','_4col.WIG', options.wig_file)
 elif re.search('wig$',options.wig_file):
@@ -27,13 +26,12 @@ else:
 	sys.exit('Does not appear to be a WIG file!')
 outfile = open(outfilename, 'w')
 
-#sys.exit()
 
 curr_chr = ''
 curr_span = 0
+curr_pos = 0
 track_line_written = False
 
-#outfile.write('track type=wiggle_0 name="test" description="test"\n')
 
 for line in infile:
 	line = line.rstrip()
@@ -41,13 +39,15 @@ for line in infile:
 		if(not track_line_written):
 			outfile.write(line + '\n')
 			track_line_written = True
-	elif(line[0:4] == 'vari'):
-		(blank, chr, span) = line.split()
-		curr_chr = chr[6:]
+	elif(line[0:4] == 'fixe'):
+		items = line.split()
+		curr_chr = items[1]
+		curr_chr = curr_chr[6:]
+		curr_pos = 0
+		curr_span = items[4]
+		curr_span = int(curr_span[5:])
 		if (not re.match('chr', curr_chr)):
 			curr_chr = 'chr' + curr_chr
-		curr_span = int(span[5:])
-		#print(curr_chr + ' ' + curr_span)
 	elif(line[0] == '#'):
 		pass
 	else:
