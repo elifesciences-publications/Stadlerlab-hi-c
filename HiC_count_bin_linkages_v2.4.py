@@ -14,6 +14,7 @@ from optparse import OptionParser
 import sys
 import re
 import gzip
+import io
 
 def parse_options():
 	parser = OptionParser()
@@ -74,14 +75,14 @@ line_count = 0
 for f in files:
 	print('Reading ' + f + '...')
 	if (f[-2:] == 'gz'):
-		file1 = gzip.open(f, 'r')
+		file1 = gzip.open(f, 'rt')
 	else:
 		file1 = open(f, 'r')
 
 	for line in file1:
-		'''line_count = line_count + 1
-		if (line_count % 1000000 == 0):
-			print('.')'''
+		line_count = line_count + 1
+		if (line_count % 10000000 == 0):
+			print('.')
 		line = line.rstrip()
 		items = line.split()
 		(chr1, Lmost1, chr2, Lmost2) = items[2], int(items[3]), items[5], int(items[6])

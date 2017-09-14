@@ -8,6 +8,7 @@ boundary calling.
 from optparse import OptionParser
 import sys
 import re
+import gzip
 
 def parse_options():
 	parser = OptionParser()
@@ -64,7 +65,12 @@ options = parse_options()
 bin_counts = {}
 width = int(options.width)
 bin_size = int(options.bin_size)
-infile = open(options.filename,'r')
+
+f = options.filename
+if (f[-2:] == 'gz'):
+	infile = gzip.open(f, 'rt')
+else:
+	infile = open(options.filename,'r')
 
 for line in infile:
 	line = line.rstrip()

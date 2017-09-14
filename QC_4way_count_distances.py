@@ -6,6 +6,7 @@ and prints out a file with the distances for the four types.
 from optparse import OptionParser
 import sys
 import re
+import gzip
 import random
 from random import randint
 from random import shuffle
@@ -13,7 +14,7 @@ from numpy import percentile
 
 def parse_options():
 	parser = OptionParser()
-	parser.add_option("-f", "--infile", dest="infile",
+	parser.add_option("-f", "--infile", dest="filename",
 					  help="input file: paired mapped", metavar="INFILE")
 	parser.add_option("-o", "--outfile", dest="outfile",
 					  help="outfile stem", metavar="OUTFILE")
@@ -32,7 +33,11 @@ plus_minus = []
 minus_plus = []
 minus_minus = []
 
-infile = open(options.infile, 'r')
+f = options.filename
+if (f[-2:] == 'gz'):
+	infile = gzip.open(f, 'rt')
+else:
+	infile = open(options.filename,'r')
 
 for line in infile:
 	items = line.split()
