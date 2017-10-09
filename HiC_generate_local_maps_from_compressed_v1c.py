@@ -11,6 +11,7 @@ v1b: more efficiently stores data (uses way less memory)
 from optparse import OptionParser
 import sys
 import re
+import gzip
 
 def parse_options():
 	parser = OptionParser()
@@ -80,7 +81,11 @@ options = parse_options()
 bin_counts = {}
 width_to_store = int(options.width)
 
-infile = open(options.filename,'r')
+f1 = options.filename
+if (f1[-2:] == 'gz'):
+		infile = gzip.open(f1, 'rt')
+else:
+	infile = open(f1, 'r')
 
 for line in infile:
 	line = line.rstrip()

@@ -18,6 +18,7 @@
 from optparse import OptionParser
 import sys
 import re
+import gzip
 
 def parse_options():
 	parser = OptionParser()
@@ -74,9 +75,12 @@ bin_totals = {}
 line_count = 0
 
 for f in files:
-	file1 = open(f, 'r')
+	if (f[-2:] == 'gz'):
+		infile = gzip.open(f, 'rt')
+	else:
+		infile = open(f, 'r')
 
-	for line in file1:
+	for line in infile:
 		line_count = line_count + 1
 		if (line_count % 10000000 == 0):
 			print('.')
@@ -101,7 +105,7 @@ for f in files:
 				if (bin1 != bin2):
 					Add_read(bin2, bin1)
 
-	file1.close()
+	infile.close()
 
 file_stem = ''
 

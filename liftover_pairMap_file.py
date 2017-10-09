@@ -5,14 +5,13 @@ from optparse import OptionParser
 import sys
 import re
 from pyliftover import LiftOver
+import gzip
 
 
 def parse_options():
 	parser = OptionParser()
-	parser.add_option("-p", "--pairfile", dest="pairfile",
+	parser.add_option("-p", "--pairfile", dest="infile",
 					  help="input file: paired mapped", metavar="INFILE")
-	parser.add_option("-l", "--liftover_file", dest="lo_file",
-					  help="liftover chain file", metavar="LO")
 	(options, args) = parser.parse_args()
 	return options
 
@@ -20,7 +19,12 @@ options = parse_options()
 
 lo = LiftOver('dm6', 'dm3')
 
-infile = open(options.pairfile, 'r')
+f1 = options.infile
+if (f1[-2:] == 'gz'):
+	infile = gzip.open(f1, 'rt')
+else:
+	infile = open(f1, 'r')
+
 for line in infile:
 	items = line.split()
 	[chr1, pos1, chr2, pos2] = [items[i] for i in [2,3,5,6]]

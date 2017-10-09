@@ -6,6 +6,7 @@ normalizes based on the bin counts, vanilla coverage normalization.
 from optparse import OptionParser
 import sys
 import re
+import gzip
 
 def parse_options():
 	parser = OptionParser()
@@ -19,10 +20,15 @@ def parse_options():
 options = parse_options()
 bin_counts = {}
 arb_constant = 10000000
-infile = options.filename
+f = options.filename
 
-file1 = open(infile, 'r')
-file_stem = re.sub('.txt', '', infile)
+if (f[-2:] == 'gz'):
+	file1 = gzip.open(f, 'rt')
+else:
+	file1 = open(f, 'r')
+
+file_stem = re.sub('.txt', '', f)
+file_stem = re.sub('.gz', '', file_stem)
 outfile = open(file_stem + '_VCnorm.txt', 'w')
 
 

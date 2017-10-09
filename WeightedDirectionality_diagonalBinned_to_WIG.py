@@ -21,6 +21,7 @@ from optparse import OptionParser
 from math import log
 import sys
 import re
+import gzip
 
 def parse_options():
 	parser = OptionParser()
@@ -36,6 +37,8 @@ def parse_options():
 					  help="Factor by which to scale weighting based on read count, w = [read_total]^a", metavar="SCALE")
 	parser.add_option("-t", "--total", dest="total", default=False,
 					  help="total mode, prints just the total reads in area defined by w and d, no direction", metavar="TOTAL")
+	parser.add_option("-s", "--outstem", dest="outstem",
+					  help="outfile stem", metavar="OUTSTEM")
 
 	(options, args) = parser.parse_args()
 	return options
@@ -56,17 +59,24 @@ def MakeBins(chromosomes, sizes):
 # Reads reduced format into bin container
 def Read_map(filename, chromosomes, sizes):
 	bin_counts = MakeBins(chromosomes, sizes)
-	infile = open(options.filename,'r')
-	for line in infile:
-		line = line.rstrip()
-		if (line[0] != '#'): #column/row totals ignore
-			(chr, bin1, bin2, count) = line.split('\t')
-			bin1 = int(bin1)
-			bin2 = int(bin2)
-			if (count == "NA"): count = 0
-			if (abs(bin1 - bin2) < (2*int(options.width)) + 2): #just storing an extra couple bins to avoid thinking about end problems
-				bin_counts[chr][bin1][bin2] = float(count)
-	infile.close()
+	filestring = str(options.filename)
+	files = filestring.split(',')
+	for file in files:
+		print(file)
+		if (file[-2:] == 'gz'):
+			infile = gzip.open(file, 'rt')
+		else:
+			infile = open(file, 'r')
+		for line in infile:
+			line = line.rstrip()
+			if (line[0] != '#'): #column/row totals ignore
+				(chr, bin1, bin2, count) = line.split('\t')
+				bin1 = int(bin1)
+				bin2 = int(bin2)
+				if (count == "NA"): count = 0
+				if (abs(bin1 - bin2) < (2*int(options.width)) + 2): #just storing an extra couple bins to avoid thinking about end problems
+					bin_counts[chr][bin1][bin2] = float(count)
+		infile.close()
 	return bin_counts
 
 # Runs through and scores each genomic position by it's left/right deal
@@ -74,7 +84,7 @@ def Score_boundaries(bin_counts, sizes, chromosomes, scale_factor):
 	bin_size = int(options.bin_size)
 	width = int(options.width)
 	diagonal_skip = int(options.diagonal_skip)
-	outfilename = re.sub('.txt', '', options.filename) + '_weightedDirectionality_w' + str(width) + 'd' + str(diagonal_skip) + 'a' + str(scale_factor) + '.WIG'
+	outfilename = re.sub('.txt', '', options.outstem) + '_weightedDirectionality_w' + str(width) + 'd' + str(diagonal_skip) + 'a' + str(scale_factor) + '.WIG'
 	outfile = open(outfilename,'w')
 	name = 'width' + str(width) + '_skip' + str(diagonal_skip) + '_sf' + str(scale_factor)
 	outfile.write ('track type=wiggle_0 name="' + name + '" description="test"' + '\n')
@@ -102,12 +112,17 @@ def Score_boundaries(bin_counts, sizes, chromosomes, scale_factor):
 	outfile.close()
 
 # Main section calling everything
-
-sizes = (23011544, 22422827, 24543557, 1351857, 21146708, 27905053)
+#dm3
+#sizes = (23011544, 22422827, 24543557, 1351857, 21146708, 27905053)
+#dm6
+sizes = (23513712, 23542271, 28110227,1348131,25286936,32079331)
 chromosomes = ('2L','X','3L','4','2R','3R')
 
 options = parse_options()
+print("Reading map from:")
 bin_counts = Read_map(options.filename, chromosomes, sizes)
+print("Done reading map...")
 scale_factor = float(options.scale_factor)
 Score_boundaries(bin_counts, sizes, chromosomes, scale_factor)
+print("Done calculating directionality!")
 

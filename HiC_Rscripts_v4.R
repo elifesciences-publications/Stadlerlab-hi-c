@@ -84,6 +84,22 @@ HiC.matrix.compress <- function(x, top.percentile=1, bottom.percentile=0.60){
 	return(x1)
 }
 
+HiC.matrix.zeroEmpties <- function(x){
+	rows.numnonzero <- numeric(length=nrow(x))
+	columns.numnonzero <- numeric(length=ncol(x))
+	for (i in 1:nrow(x)){
+		numrowsexist <- (length(x[i,][x[i,] > 0]))
+		rows.numnonzero[i] <- numrowsexist
+	}
+	#return(rows.numnonzero)
+	threshold <- 0.1 * nrow(x)
+	rows.to.zero <- rows.numnonzero < threshold
+	x1 <- x
+	x1[rows.to.zero,] <- 0
+	x1[,rows.to.zero] <- 0
+	return(x1)
+}
+
 # Wrapper for basic processing of a binned Hi-C file. Reads in, does vanilla norm, log, compression, hist. equalizing.
 HiC.matrix.processfromfile <- function(filename,top,bottom){
 	x <- read.matrix(filename)
@@ -115,6 +131,7 @@ HiC.heatmap.compression.series <- function(filename){
 	x <- read.matrix(filename)
 	x <- HiC.matrix.vanilla.normalize(x)
 	x <- HiC.matrix.scale.log(x)
+	x <- HiC.matrix.zeroEmpties(x)
 	for (i in seq(0.25, 0.75, 0.05)){
 		x1 <- HiC.matrix.compress(x, 1, i)
 		x1 <- histogram.equalize(x1)
@@ -454,7 +471,7 @@ boundaries.call <- function(boundary.score.file, left.thresh, right.thresh){
 }
 
 # Makes heatmaps for all the local heatmap files in a folder. Creates multiple plots with a series of value compressions (contrast settings).
-local.heatmap.plot.compression.series <- function(folder, outfolder, LOG=TRUE){
+local.heatmap.plot.compression.series <- function(folder, outfolder, LOG=TRUE, ZEROEMPTY=FALSE){
 	files <- list.files(folder)
 	for (file in files){
 		if(! grepl('location', file)){
@@ -470,9 +487,12 @@ local.heatmap.plot.compression.series <- function(folder, outfolder, LOG=TRUE){
 			if(LOG){
 				x <- HiC.matrix.scale.log(x)
 			}
+			if(ZEROEMPTY){
+				x <- HiC.matrix.zeroEmpties(x)
+			}
 			for (top in c(0.995)){
-				for (bottom in c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9)){
-				#for (bottom in c(0.65, 0.7, 0.75, 0.8)){
+				#for (bottom in c(0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9)){
+				for (bottom in c(0.65, 0.7, 0.75, 0.80, 0.85)){
 				#for (bottom in c(0.45, 0.55, 0.65)){
 					outfile <- paste(outfolder, '/', date.string, '_', outstem, '_', top, '_', bottom, '.jpg' ,sep='')
 					x1 <- HiC.matrix.compress(x, top, bottom)
@@ -553,10 +573,12 @@ chip.heatmaps.folder.sortbyWIG <- function(folder, outfolder, WIG.file, SELF=FAL
 	}
 	files <- list.files(folder)
 	for (file in files){
-		if (SELF){
-			sortby <- get.sortby(file)
+		if(file_test("-f", file)){
+			if (SELF){
+				sortby <- get.sortby(file)
+			}
+			chip.heatmaps.folder.sortbyX(folder, file, sortby, outfolder)
 		}
-		chip.heatmaps.folder.sortbyX(folder, file, sortby, outfolder)
 	}
 }
 
@@ -663,6 +685,7 @@ chip.heatmaps.polycomb <- function(folder, outfolder){
 chip.heatmaps.directionality.around.peaks <- function(gff.folder, heat.folder, outfolder, number){
 	files <- list.files(heat.folder)
 	for (heat.file in files){
+		print(heat.file)
 		gff.file <- gsub('_w.+_b.+.txt', '.gff3', heat.file, perl=TRUE)
 		heat <- read.table(paste(heat.folder, heat.file,sep="/"), row.names=1)
 		gff <- read.table(paste(gff.folder, gff.file,sep="/"))
@@ -672,7 +695,7 @@ chip.heatmaps.directionality.around.peaks <- function(gff.folder, heat.folder, o
 			sortby <- paste('chr', sortby,sep="")
 		}
 		heat.topn <- as.matrix(heat[sortby,])
-		heat.topn <- chip.heatmap.(heat.topn, 0.95, 0.05)
+		heat.topn <- chip.heatmap.compress(heat.topn, 0.95, 0.05)
 		middle <- round(ncol(heat.topn) / 2,0)
 		window <- 99
 		jpeg(paste(outfolder, gsub('.txt', '.jpg', heat.file),sep='/'),4000,4000)
@@ -680,6 +703,39 @@ chip.heatmaps.directionality.around.peaks <- function(gff.folder, heat.folder, o
 		dev.off()
 		#return()
 	}
+}
+
+# 
+chip.heatmaps.directionality.AP.aroundboundaries <- function(boundaries.file, heat.folder, outfolder, number){
+	files <- list.files(heat.folder)
+	for (heat.file in files){
+		#print(heat.file)
+		heat <- read.table(paste(heat.folder, heat.file,sep="/"), row.names=1)
+		boundaries <- read.table(boundaries.file)
+		#print(boundaries)
+		topn <- boundaries[order(boundaries[,5], decreasing=TRUE)[1:number],]
+		sortby <- paste(topn[,1], ':', topn[,2], '-', topn[,3],sep='')
+		if (! grepl('chr', boundaries[1,1])){
+			sortby <- paste('chr', sortby,sep="")
+		}
+		heat.topn <- as.matrix(heat[sortby,])
+		heat.topn <- chip.heatmap.compress(heat.topn, 0.95, 0.05)
+		middle <- round(ncol(heat.topn) / 2,0)
+		window <- 99
+		jpeg(paste(outfolder, gsub('.txt', '.jpg', heat.file),sep='/'),4000,4000)
+		chip.heatmap(heat.topn[,(middle - window):(middle + window)], 'test', 'grey')
+		dev.off()
+		#return()
+	}
+}
+
+chip.enrichment.vs.localaverage <- function(filename, window){
+	x <- read.table(filename, row.names=1)
+	middle.column <- round(ncol(x) / 2, 0)
+	#local.average <- apply(x[,c(1:(middle.column - window - 1),(middle.column + window + 1):ncol(x))], MARGIN=1, mean)
+	grand.mean <- mean(as.matrix(x))
+	middle.average <- apply(x[,(middle.column - window):(middle.column + window)], MARGIN=1, mean)
+	return(middle.average / grand.mean)
 }
 
 # Produces a scatterplot and correlation coefficient for boundary strength vs. supplied ChIP signal

@@ -6,6 +6,7 @@ from optparse import OptionParser
 import sys
 import re
 import random
+import gzip
 from random import randint
 from random import shuffle
 from numpy import percentile
@@ -24,8 +25,14 @@ def parse_options():
 options = parse_options()
 dist_cutoff = int(options.distance)
 
-infile = open(options.infile, 'r')
-out_stem = re.sub('.txt', '', options.infile)
+f1 = options.infile
+if (f1[-2:] == 'gz'):
+		infile = gzip.open(f1, 'rt')
+else:
+	infile = open(f1, 'r')
+
+out_stem = re.sub('.gz', '', options.infile)
+out_stem = re.sub('.txt', '', out_stem)
 outfile = open(out_stem + '_genomicFiltered.txt', 'w')
 
 for line in infile:

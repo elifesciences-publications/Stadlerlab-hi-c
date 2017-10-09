@@ -34,9 +34,10 @@ def add_position(line, genome, window, bin_size, counts, individual, outfile):
 	(chr, pos1, pos2) = ('','','')
 	if (options.gff):
 		items = line.split()
-		chr = items[0]
-		pos1 = items[3]
-		pos2 = items[4]
+		if (len(items) >= 5):
+			chr = items[0]
+			pos1 = items[3]
+			pos2 = items[4]
 	else:
 		chr, pos1, pos2 = line.split('\t')[0:3]
 		#(pos1, pos2) = positions.split('-')
