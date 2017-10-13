@@ -46,5 +46,9 @@ for line in infile:
 			#items_liftedover = list(map(str, items_liftedover))
 			#print('\t'.join(items_liftedover))
 			print(items[0] + '\t' + str(liftover1[0][1]) + '\t' + str(liftover2[0][1]) + '\t' + '\t'.join(items[3:]))
+		else:
+			print("Did not liftover")
+	else:
+		print('Did not liftover')
 
 infile.close()

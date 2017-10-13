@@ -78,22 +78,6 @@ max_mm = len(minus_minus)
 
 max_entry = max(max_pp, max_pm, max_mp, max_mm)
 
-#outfile = open(options.outfile, 'w')
-#outfile.write('++' + '\t' + '+-' + '\t' + '-+' + '\t' + '--' + '\n')
-for i in range (0, max_entry):
-	if (i < max_pp):
-		#outfile.write(str(plus_plus[i]) + '\t')
-	else: outfile.write('NA' + '\t')
-	if (i < max_pm):
-		#outfile.write(str(plus_minus[i]) + '\t')
-	else: outfile.write('NA' + '\t')
-	if (i < max_mp):
-		#outfile.write(str(minus_plus[i]) + '\t')
-	else: outfile.write('NA' + '\t')
-	if (i < max_mm):
-		#outfile.write(str(minus_minus[i]) + '\n')
-	else: outfile.write('NA' + '\n')
-#outfile.close()
 
 print('2000 counts: ' + str(max_pp) + '\t' + str(max_pm) + '\t' + str(max_mp) + '\t' + str(max_mm) + '\n')
 print('Total counts: ' + str(pp_count) + '\t' + str(pm_count) + '\t' + str(mp_count) + '\t' + str(mm_count) + '\n')
